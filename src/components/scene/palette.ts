@@ -6,8 +6,10 @@ export const SCENE = {
   accent: "#cfff5e",
   warn: "#f2b84b",
   crit: "#ff6a5c",
-  series: { "wf-viability": "#a9dc3f", other: "#6fa8ff" },
 };
 
-export const seriesColor = (workflowId: string): string =>
-  workflowId === "wf-viability" ? SCENE.series["wf-viability"] : SCENE.series.other;
+const SERIES_3D = ["#a9dc3f", "#6fa8ff"] as const;
+
+/** The first workflow takes slot one. Every other workflow shares slot two, so no hue is ever generated. */
+export const seriesColor = (workflowId: string, primaryId: string | undefined): string =>
+  SERIES_3D[workflowId === primaryId ? 0 : 1];

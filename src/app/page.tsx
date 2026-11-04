@@ -94,14 +94,14 @@ export default function Home() {
               <span className="label">{top.isMeaningful ? "Clear gain" : "Within noise"}</span>
               <strong>{signedPct(top.gainPct)}</strong>
               <h3>{top.name}</h3>
-              <p>{figures.limiter} is the limiting resource in today&apos;s configuration, so added read capacity goes straight to output.</p>
+              <p>{figures.limiter} has the longest plate queue today. This change relieves it.</p>
             </article>
             {door ? (
               <article>
                 <span className="label">{door.isMeaningful ? "Clear gain" : "Within noise"}</span>
                 <strong>{signedPct(door.gainPct)}</strong>
                 <h3>{door.name}</h3>
-                <p>A real constraint on the robot, and a detour on every imaged plate, but the detour is not on the critical path.</p>
+                <p>{door.isMeaningful ? "A real constraint on the robot, and removing it pays back in throughput." : "A real constraint on the robot, and a detour on every imaged plate, yet removing it does not move throughput today."}</p>
               </article>
             ) : null}
           </div>

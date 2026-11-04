@@ -7,7 +7,7 @@ import type { Segment } from "@/core/sim/types";
 import type { Point } from "@/core/twin/routing";
 import type { LabTwin, Transport } from "@/core/twin/schema";
 import { usePlayback } from "../console/playback";
-import { pointAlong, toScene } from "./geometry";
+import { pointAlong, railOf, toScene } from "./geometry";
 import { SCENE, seriesColor } from "./palette";
 
 const endOf = (segment: Segment, anchor: (id: string) => Point): Point => {
@@ -47,10 +47,10 @@ export function Plates({ twin, segments }: { twin: LabTwin; segments: readonly S
     const target = mesh.current;
     if (target === null) return;
     plates.forEach((timeline, index) => {
-      target.setColorAt(index, new THREE.Color(seriesColor(timeline[0]?.workflowId ?? "")));
+      target.setColorAt(index, new THREE.Color(seriesColor(timeline[0]?.workflowId ?? "", twin.workflows[0]?.id)));
     });
     if (target.instanceColor !== null) target.instanceColor.needsUpdate = true;
-  }, [plates]);
+  }, [plates, twin]);
 
   useFrame(() => {
     const target = mesh.current;
@@ -81,9 +81,8 @@ export function Plates({ twin, segments }: { twin: LabTwin; segments: readonly S
   );
 }
 
-const RAIL_Y = 4;
-
-function Mover({ transport, timeline, isSelected, onSelect }: {
+function Mover({ twin, transport, timeline, isSelected, onSelect }: {
+  twin: LabTwin;
   transport: Transport;
   timeline: readonly Segment[];
   isSelected: boolean;
@@ -91,11 +90,12 @@ function Mover({ transport, timeline, isSelected, onSelect }: {
 }) {
   const ref = useRef<THREE.Group>(null);
   const home = { x: transport.homeX, y: transport.homeY };
+  const rail = useMemo(() => (transport.kind === "arm" ? railOf(twin, transport) : null), [twin, transport]);
 
   useFrame(() => {
     if (ref.current === null) return;
     const point = locate(timeline, usePlayback.getState().t, () => home) ?? home;
-    const place = transport.kind === "arm" ? { x: Math.min(11, Math.max(1.5, point.x)), y: RAIL_Y } : point;
+    const place = rail === null ? point : { x: Math.min(rail.to.x, Math.max(rail.from.x, point.x)), y: rail.from.y };
     ref.current.position.set(...toScene(place));
   });
 
@@ -136,6 +136,6 @@ export function Transports({ twin, segments, selectedId, onSelect }: {
     return new Map(twin.transports.map((item) => [item.id, moves.filter((segment) => segment.resourceId === item.id)]));
   }, [segments, twin]);
   return twin.transports.map((transport) => (
-    <Mover key={transport.id} transport={transport} timeline={timelines.get(transport.id) ?? []} isSelected={transport.id === selectedId} onSelect={onSelect} />
+    <Mover key={transport.id} twin={twin} transport={transport} timeline={timelines.get(transport.id) ?? []} isSelected={transport.id === selectedId} onSelect={onSelect} />
   ));
 }

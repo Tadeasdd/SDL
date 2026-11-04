@@ -7,7 +7,7 @@ const Id = z.string().min(1).max(64);
 export const EvidenceRefSchema = z.object({
   docId: Id,
   locator: z.string().min(1).max(160),
-  quote: z.string().max(400).optional(),
+  quote: z.string().trim().min(1).max(400).optional(),
 });
 
 export const ProvenanceSchema = z.object({

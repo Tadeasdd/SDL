@@ -72,12 +72,15 @@ export function ReportView() {
   const status = useConsole((state) => state.agent.status);
   const config = useConsole((state) => state.sim.config);
   const skip = useConsole((state) => state.skipReplay);
+  const source = useConsole((state) => state.source);
   const [analysis, setAnalysis] = useState<Analysis | null>(null);
   const [problem, setProblem] = useState<string | null>(null);
 
   useEffect(() => {
     if (status !== "done") return;
     const timer = setTimeout(() => {
+      setProblem(null);
+      setAnalysis(null);
       try {
         const base = monteCarlo(twin, config, REPORT_RUNS);
         const bottleneck = Object.entries(base.bottleneckShare).sort((a, b) => b[1] - a[1])[0]?.[0] ?? null;
@@ -99,7 +102,7 @@ export function ReportView() {
       <section className="panel panel-center">
         <h2 className="panel-title"><span>Twin not ready</span></h2>
         <p>The report needs a finished twin.</p>
-        <button className="btn btn-solid" onClick={skip}>Skip to twin</button>
+        {source === "replay" ? <button className="btn btn-solid" onClick={skip}>Skip to twin</button> : null}
       </section>
     );
   }
@@ -137,7 +140,7 @@ export function ReportView() {
       <ul className="assume">
         <li>Plates have unlimited staging space at hand-offs. Plates wait at the last hand-off until the next instrument is free.</li>
         <li>Step durations are normal, fitted from the run log. Failures are drawn from MTBF and repaired in place.</li>
-        <li>Gains are for this demand mix and are ranges across {REPORT_RUNS} paired runs. They are not forecasts.</li>
+        <li>Gains are for this demand mix. Each change is run on the same {REPORT_RUNS} seeds as the baseline. &quot;Clear&quot; means the 5th to 95th percentile of those per-seed differences excludes zero, which at this run count is close to every run agreeing. These are not forecasts.</li>
         <li>Costs, labour and floor space are not modelled, so a higher rank is not automatically a better purchase.</li>
       </ul>
     </article>

@@ -82,7 +82,7 @@ export const candidateInterventions = (twin: LabTwin): Scenario[] => {
     .map((item): Scenario => ({
       id: `expand-${item.id}`,
       name: `Add a second ${item.name}`,
-      rationale: `Doubles ${item.capabilities.join(", ")} capacity at ${item.id}.`,
+      rationale: `Adds one more unit of ${item.capabilities.join(", ")} capacity at ${item.id}.`,
       patches: [{ op: "add-capacity", id: item.id, by: 1 }],
     }));
   const widen = twin.doors
@@ -118,11 +118,22 @@ const dominantBottleneck = (result: MonteCarloResult): string | null => {
   return ranked[0]?.[0] ?? null;
 };
 
+const TIE_GAIN_POINTS = 1;
+
+/** The best meaningful change. On a tie, returning owned equipment beats buying more. */
+const pickNext = (ranked: readonly Intervention[]): Intervention | undefined => {
+  const gains = ranked.filter((item) => item.isMeaningful && item.delta.mean > 0);
+  const top = gains[0];
+  if (top === undefined) return undefined;
+  const restore = gains.find((item) => item.patches.some((patch) => patch.op === "set-state"));
+  return restore !== undefined && top.gainPct - restore.gainPct < TIE_GAIN_POINTS ? restore : top;
+};
+
 /** Greedy: take the best meaningful change, re-simulate, repeat. Shows where the constraint moves next. */
 export const improvementPath = (twin: LabTwin, config: SimConfig, runs: number, maxSteps = 3): PathStep[] => {
   const walk = (current: LabTwin, remaining: number): PathStep[] => {
     if (remaining === 0) return [];
-    const best = rankInterventions(current, config, runs).find((item) => item.isMeaningful && item.delta.mean > 0);
+    const best = pickNext(rankInterventions(current, config, runs));
     if (best === undefined) return [];
     const next = applyPatches(current, best.patches);
     const result = monteCarlo(next, config, runs);

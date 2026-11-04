@@ -10,7 +10,7 @@
 | --- | --- |
 | **Map** | Claude reads floor plans, asset registers, network scans, SOPs and run logs, and finds where they disagree. |
 | **Model** | The twin holds geometry, instruments, transport and workflows. Every entity carries evidence, a confidence and a status. |
-| **Simulate** | A seeded discrete-event engine runs a day of plates. Scenarios are compared on paired seeds with Monte Carlo ranges. |
+| **Simulate** | A seeded discrete-event engine runs a day of plates. Scenarios run on the same seeds as the baseline, with one random stream per plate, and report Monte Carlo ranges. |
 | **Report** | Every candidate change is ranked by simulated gain, and the report shows where the constraint moves next. |
 
 ## The example lab
@@ -59,7 +59,7 @@ evidence ──> agent loop (Claude | scripted replay) ──> tool handlers ─
 ```
 
 - **The model decides, the code computes.** Claude reconciles sources. Duration fits, validation, routing and simulation are deterministic code it calls as tools.
-- **Citations are checked.** A tool call citing an unknown document, or a quote that is not in the document, is rejected and returned to the model to correct.
+- **Citations are checked.** Every entity must cite a loaded document, and any quote it gives must appear in that document. A failing call is rejected and returned to the model to correct. Quotes are optional, so a citation without one is checked for its document only.
 - **Evidence is untrusted.** Tools can only change the twin. They have no network or filesystem access.
 - **Replay is not Live.** The example is a scripted replay: its decisions are authored, but every call runs through the real tools, validator and simulator, and the console labels it as a replay. No model is called.
 
@@ -85,7 +85,8 @@ npm run test:e2e   # Playwright, after a build
 - The point cloud in the viewport is **synthesised from the twin**. SDL does not ingest LiDAR or photogrammetry yet. Live mode accepts images, but the example works from text and drawings.
 - The simulator is a planning model. It assumes unlimited staging at hand-offs and does not model cost, labour or consumables. Treat results as comparisons, not forecasts.
 - Heavy analysis runs on the main thread. The Report view pauses briefly while it computes.
-- The Live endpoint's rate limit is in memory, per process. Put real authentication in front of it before deploying it publicly.
+- The Live endpoint's rate limits are in memory, per process. Put real authentication in front of it before deploying it publicly.
+- Mobile robot paths minimise distance to each door, not the full path, so a route with several door choices can be slightly longer than optimal.
 
 ## License
 

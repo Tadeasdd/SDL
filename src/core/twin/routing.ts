@@ -67,10 +67,11 @@ const HUMAN_COST_FACTOR = 6;
 const legCost = (leg: Leg, transport: Transport): number =>
   legSeconds(leg, transport) * (transport.kind === "human" ? HUMAN_COST_FACTOR : 1);
 
-const collectLegs = (twin: LabTwin, from: Instrument): { leg: Leg; cost: number; next: Instrument }[] =>
+const collectLegs = (twin: LabTwin, from: Instrument, toId: string): { leg: Leg; cost: number; next: Instrument }[] =>
   twin.transports.flatMap((transport) =>
     twin.instruments.flatMap((next) => {
       if (next.id === from.id) return [];
+      if (next.state === "offline" && next.id !== toId) return [];
       const leg = directLeg(twin, transport, from, next);
       return leg === null ? [] : [{ leg, cost: legCost(leg, transport), next }];
     }),
@@ -97,7 +98,7 @@ export const planRoute = (twin: LabTwin, fromId: string, toId: string): Route | 
     if (current.instrument.id === toId) {
       return { legs: current.legs, distanceM: current.legs.reduce((sum, leg) => sum + leg.distanceM, 0) };
     }
-    for (const { leg, cost, next } of collectLegs(twin, current.instrument)) {
+    for (const { leg, cost, next } of collectLegs(twin, current.instrument, toId)) {
       const total = current.cost + cost;
       if (total >= (best.get(next.id) ?? Number.POSITIVE_INFINITY)) continue;
       best.set(next.id, total);

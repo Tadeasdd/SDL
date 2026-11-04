@@ -6,7 +6,7 @@ import { useMemo, useRef } from "react";
 import * as THREE from "three";
 import type { Segment } from "@/core/sim/types";
 import type { LabTwin } from "@/core/twin/schema";
-import { buildCloud, toScene, wallSegments, WALL_HEIGHT } from "./geometry";
+import { buildCloud, sceneOffset, toScene, wallSegments, WALL_HEIGHT } from "./geometry";
 import { InstrumentBody } from "./InstrumentBody";
 import { buildLabels, LabelLayer, LabelProjector } from "./Labels";
 import { SCENE } from "./palette";
@@ -144,7 +144,7 @@ export default function LabScene(props: SceneProps) {
         aria-label="3D view of the lab digital twin"
       >
         <fog attach="fog" args={[SCENE.bg, 38, 80]} />
-        <Contents {...props} />
+        <group position={sceneOffset(twin)}><Contents {...props} /></group>
         <LabelProjector root={labelRoot} />
         <OrbitControls
           enabled={interactive}

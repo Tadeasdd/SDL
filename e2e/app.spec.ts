@@ -78,7 +78,7 @@ test("losing the only reader reports a usable error", async ({ page }) => {
 test("report ranks interventions and exports the twin", async ({ page }) => {
   const errors = watchErrors(page);
   await openMapped(page, "report");
-  await expect(page.locator(".rank tbody tr").first()).toContainText(/RDR/, { timeout: 30_000 });
+  await expect(page.locator(".rank tbody tr").first()).toContainText(/RDR|Plate Reader/, { timeout: 30_000 });
   const download = page.waitForEvent("download");
   await page.getByRole("button", { name: "Export twin JSON" }).click();
   expect((await download).suggestedFilename()).toBe("aldermoor-bay-4.twin.json");

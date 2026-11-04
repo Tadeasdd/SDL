@@ -110,10 +110,12 @@ function Verdict({ comparison }: { comparison: Comparison }) {
 
 function Utilisation({ result }: { result: MonteCarloResult }) {
   const run = result.representative;
-  const ranked = [...run.resources].sort((a, b) => b.utilization - a.utilization).slice(0, 8);
+  const byUse = [...run.resources].sort((a, b) => b.utilization - a.utilization);
+  const limiter = byUse.filter((item) => item.id === run.bottleneckId);
+  const ranked = [...new Set([...byUse.slice(0, 8), ...limiter])];
   return (
     <>
-      <h3 className="group-head label">Utilisation, representative run</h3>
+      <h3 className="group-head label">Processing time, representative run</h3>
       <ul className="util">
         {ranked.map((item) => (
           <li key={item.id} className={item.id === run.bottleneckId ? "is-limit" : ""}>
@@ -131,10 +133,11 @@ function Results() {
   const sim = useConsole((state) => state.sim);
   const current = sim.comparison?.scenario ?? sim.baseline;
   const baseline = sim.comparison?.baseline;
+  const hasUnrun = sim.scenarios.length > 0 && sim.comparison === null;
   const perHour = (value: number) => value.toFixed(2);
   return (
     <section className="panel panel-right" aria-label="Simulation results">
-      <h2 className="panel-title"><span>Result</span><span>{sim.comparison ? "vs baseline" : "Baseline"}</span></h2>
+      <h2 className="panel-title"><span>Result</span><span>{sim.comparison ? "vs baseline" : hasUnrun ? "Baseline, changes not run" : "Baseline"}</span></h2>
       <div className="panel-scroll">
         {sim.status === "error" ? <p className="notice" role="alert">{sim.error}</p> : null}
         {current === null || current === undefined ? <p className="empty">{sim.status === "running" ? "Simulating." : "Run a simulation to see results."}</p> : (
@@ -146,7 +149,7 @@ function Results() {
             </dl>
             {sim.comparison ? <Verdict comparison={sim.comparison} /> : null}
             <div className="limit">
-              <span className="label">Limiting resource</span>
+              <span className="label">Longest plate queue</span>
               <ul>
                 {Object.entries(current.bottleneckShare).sort((a, b) => b[1] - a[1]).slice(0, 3).map(([id, share]) => (
                   <li key={id} className="mono"><strong>{id}</strong> in {Math.round(share * 100)}% of runs</li>
@@ -182,7 +185,7 @@ export function SimulateView() {
   useEffect(() => {
     const state = useConsole.getState();
     if (status === "done" && state.sim.baseline === null && state.sim.status === "idle") state.runSimulation();
-  }, [status, sim.config]);
+  }, [status]);
 
   useEffect(() => {
     if (run !== undefined) usePlayback.getState().load(run.makespanS);

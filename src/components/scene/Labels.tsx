@@ -4,26 +4,31 @@ import { useFrame, useThree } from "@react-three/fiber";
 import { useMemo, type RefObject } from "react";
 import { Vector3 } from "three";
 import type { LabTwin } from "@/core/twin/schema";
-import { toScene, WALL_HEIGHT } from "./geometry";
+import { sceneOffset, toScene, WALL_HEIGHT } from "./geometry";
 
 const LABEL_LIFT_M = 0.24;
 
 type Label = { id: string; text: string; at: [number, number, number]; className: string };
 
-export const buildLabels = (twin: LabTwin, selectedId: string | null): Label[] => [
+const shift = (at: [number, number, number], by: [number, number, number]): [number, number, number] => [at[0] + by[0], at[1], at[2] + by[2]];
+
+export const buildLabels = (twin: LabTwin, selectedId: string | null): Label[] => {
+  const offset = sceneOffset(twin);
+  return [
   ...twin.zones.map((zone) => ({
     id: zone.id,
     text: zone.name,
-    at: toScene({ x: zone.bounds.x + zone.bounds.w / 2, y: zone.bounds.y + 0.3 }, WALL_HEIGHT),
+    at: shift(toScene({ x: zone.bounds.x + zone.bounds.w / 2, y: zone.bounds.y + 0.3 }, WALL_HEIGHT), offset),
     className: "scene-zone",
   })),
   ...twin.instruments.map((item) => ({
     id: item.id,
     text: item.id,
-    at: toScene(item, item.size.h + LABEL_LIFT_M),
+    at: shift(toScene(item, item.size.h + LABEL_LIFT_M), offset),
     className: `scene-tag${item.id === selectedId ? " is-selected" : ""}${item.state === "offline" ? " is-offline" : ""}`,
   })),
-];
+  ];
+};
 
 /** Plain DOM, positioned by LabelProjector. Living outside the Canvas keeps it out of the three.js reconciler. */
 export function LabelLayer({ labels, root }: { labels: Label[]; root: RefObject<HTMLDivElement | null> }) {

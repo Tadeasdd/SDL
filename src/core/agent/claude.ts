@@ -38,29 +38,34 @@ export const toolDefinitions = (): BetaTool[] =>
     input_schema: inputSchema(tool.schema),
   }));
 
-export type MessageStreamer = (messages: BetaMessageParam[]) => Promise<BetaMessage>;
+export type MessageStreamer = (messages: BetaMessageParam[], signal?: AbortSignal) => Promise<BetaMessage>;
 
 /** Binds the real API. Separate from the loop so the loop can be tested without a network. */
 export const createClaudeStreamer = (client: Anthropic, model: string): MessageStreamer => {
   const tools = toolDefinitions();
-  return (messages) =>
+  return (messages, signal) =>
     client.beta.messages
-      .stream({
-        model,
-        max_tokens: MAX_OUTPUT_TOKENS,
-        thinking: { type: "adaptive", display: "summarized" },
-        output_config: { effort: "high" },
-        betas: ["server-side-fallback-2026-07-01"],
-        fallbacks: "default",
-        system: [{ type: "text", text: SYSTEM_PROMPT, cache_control: { type: "ephemeral" } }],
-        tools,
-        messages,
-      })
+      .stream(
+        {
+          model,
+          max_tokens: MAX_OUTPUT_TOKENS,
+          thinking: { type: "adaptive", display: "summarized" },
+          output_config: { effort: "high" },
+          betas: ["server-side-fallback-2026-07-01"],
+          fallbacks: "default",
+          system: [{ type: "text", text: SYSTEM_PROMPT, cache_control: { type: "ephemeral" } }],
+          tools,
+          messages,
+        },
+        { signal },
+      )
       .finalMessage();
 };
 
 const openingMessage = (docs: readonly EvidenceDoc[]): BetaMessageParam => {
-  const index = docs.map((doc) => `- ${doc.id}: ${doc.title} (${doc.kind})`).join("\n");
+  // Filenames are user-controlled, so they are flattened before they enter the prompt.
+  const flat = (text: string): string => text.replace(/\s+/g, " ").trim();
+  const index = docs.map((doc) => `- ${flat(doc.id)}: ${flat(doc.title)} (${doc.kind})`).join("\n");
   const images = docs
     .filter((doc) => doc.kind === "image")
     .map((doc) => ({
@@ -86,16 +91,17 @@ const stopFailure = (message: BetaMessage): string | null => {
   return null;
 };
 
-export type AgentRun = { streamer: MessageStreamer; docs: readonly EvidenceDoc[]; twin: LabTwin };
+export type AgentRun = { streamer: MessageStreamer; docs: readonly EvidenceDoc[]; twin: LabTwin; signal?: AbortSignal };
 
 /** Manual tool loop: tools thread an immutable twin, so each call must see the previous call's result. */
-export async function* runAgent({ streamer, docs, twin }: AgentRun): AsyncGenerator<AgentEvent> {
+export async function* runAgent({ streamer, docs, twin, signal }: AgentRun): AsyncGenerator<AgentEvent> {
   let state: AgentState = { twin, docs, finishedSummary: null };
   let messages: BetaMessageParam[] = [openingMessage(docs)];
   let nudges = 0;
 
   for (let turn = 0; turn < MAX_TURNS; turn += 1) {
-    const message = await streamer(messages);
+    if (signal?.aborted) return;
+    const message = await streamer(messages, signal);
     for (const text of narration(message)) yield { type: "thought", text };
 
     const failure = stopFailure(message);

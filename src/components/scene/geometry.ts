@@ -1,12 +1,26 @@
 import { createRng } from "@/core/sim/random";
 import type { Point } from "@/core/twin/routing";
-import type { Instrument, LabTwin, Zone } from "@/core/twin/schema";
+import type { Instrument, LabTwin, Transport, Zone } from "@/core/twin/schema";
 
 export const WALL_HEIGHT = 2.6;
 export const SITE = { x: 12, y: 7 };
 
 /** Twin plan coordinates to scene coordinates: plan y becomes depth. */
 export const toScene = (point: Point, height = 0): [number, number, number] => [point.x - SITE.x, height, point.y - SITE.y];
+
+/** Shift that puts this twin at the scene origin. `toScene` assumes SITE, so this is applied once at the root. */
+export const sceneOffset = (twin: LabTwin): [number, number, number] => {
+  if (twin.zones.length === 0) return [0, 0, 0];
+  const xs = twin.zones.flatMap(({ bounds }) => [bounds.x, bounds.x + bounds.w]);
+  const ys = twin.zones.flatMap(({ bounds }) => [bounds.y, bounds.y + bounds.h]);
+  return [SITE.x - (Math.min(...xs) + Math.max(...xs)) / 2, 0, SITE.y - (Math.min(...ys) + Math.max(...ys)) / 2];
+};
+
+/** An arm's rail spans the instruments it reaches, along the line of its home position. */
+export const railOf = (twin: LabTwin, arm: Transport): { from: Point; to: Point } => {
+  const xs = twin.instruments.filter((item) => arm.reach.includes(item.id)).map((item) => item.x);
+  return { from: { x: Math.min(arm.homeX, ...xs), y: arm.homeY }, to: { x: Math.max(arm.homeX, ...xs), y: arm.homeY } };
+};
 
 export const pointAlong = (path: readonly Point[], share: number): Point => {
   const lengths = path.slice(1).map((point, index) => {

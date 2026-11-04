@@ -37,16 +37,22 @@ export const runLive = async (docs: EvidenceDoc[], receive: (event: AgentEvent) 
     }
     const reader = response.body.pipeThrough(new TextDecoderStream()).getReader();
     let buffer = "";
+    let hasEnded = false;
+    const track = (event: AgentEvent) => {
+      hasEnded = hasEnded || event.type === "done" || event.type === "error";
+      receive(event);
+    };
     for (;;) {
       const { done, value } = await reader.read();
       if (done) break;
       buffer += value;
       const end = buffer.lastIndexOf("\n");
       if (end >= 0) {
-        parseLines(buffer.slice(0, end), receive);
+        parseLines(buffer.slice(0, end), track);
         buffer = buffer.slice(end + 1);
       }
     }
+    if (!hasEnded) receive({ type: "error", message: "The agent stream ended before the twin was finished." });
   } catch (error) {
     const stopped = error instanceof DOMException && error.name === "AbortError";
     receive({ type: "error", message: stopped ? "Stopped by operator." : "Lost the connection to the agent." });

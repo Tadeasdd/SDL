@@ -35,6 +35,8 @@ export type ToolOutcome = {
 };
 
 const MAX_READ_LINES = 400;
+/** Tool results are re-sent on every later turn, so one huge line must not become one huge bill. */
+const MAX_READ_CHARS = 60_000;
 
 const ReadEvidenceInput = z.object({
   docId: z.string(),
@@ -114,9 +116,16 @@ export const TOOLS = {
     schema: ReadEvidenceInput,
     label: (input) => input.docId,
     run: (state, input) => {
-      const lines = findDoc(state, input.docId).content.split("\n");
+      const doc = findDoc(state, input.docId);
+      if (doc.kind === "image") throw new Error(`${doc.id} is an image. It is already attached to the conversation.`);
       const start = input.startLine - 1;
-      return { state, touched: null, content: lines.slice(start, start + input.lineCount).join("\n") };
+      const text = doc.content.split("\n").slice(start, start + input.lineCount).join("\n");
+      const isCut = text.length > MAX_READ_CHARS;
+      return {
+        state,
+        touched: null,
+        content: isCut ? `${text.slice(0, MAX_READ_CHARS)}\n[Truncated at ${MAX_READ_CHARS} characters. Read fewer lines.]` : text,
+      };
     },
   }),
   fit_durations: define({
@@ -176,6 +185,9 @@ export const TOOLS = {
     schema: FinishInput,
     label: () => "mapping complete",
     run: (state, input) => {
+      if (state.twin.instruments.length === 0 || state.twin.workflows.length === 0) {
+        throw new Error("Cannot finish: the twin needs at least one instrument and one workflow.");
+      }
       const issues = validateTwin(state.twin).filter((issue) => issue.severity === "error");
       if (issues.length > 0) throw new Error(`Cannot finish: ${issues.map((issue) => issue.message).join(" ")}`);
       return { state: { ...state, finishedSummary: input.summary }, touched: null, content: "Mapping complete." };

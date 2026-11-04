@@ -151,6 +151,32 @@ describe("simulate", () => {
     expect(() => simulate(lineTwin({ transports: [] }), config())).toThrow(/No reachable instrument/);
   });
 
+  it("never strands a plate on an instrument that cannot finish the workflow", () => {
+    const twin = lineTwin({
+      instruments: [
+        instrument("dead-end", "first", { x: 1 }),
+        instrument("i1", "first", { x: 2 }),
+        instrument("i2", "second", { x: 6 }),
+      ],
+    });
+    const result = simulate(twin, config());
+    expect(result.completed).toBe(10);
+    expect(result.resources.some((item) => item.id === "dead-end")).toBe(false);
+  });
+
+  it("gives a plate the same draws when a scenario reorders events", () => {
+    const flow = workflow([["first", 100], ["second", 100]]);
+    const varied = { ...flow, steps: flow.steps.map((step) => ({ ...step, duration: { ...step.duration, sdS: 20 } })) };
+    const base = lineTwin({ workflows: [varied] });
+    const wider = applyPatches(base, [{ op: "add-capacity", id: "i2", by: 1 }]);
+    const firstStep = (twin: typeof base) =>
+      simulate(twin, config()).segments
+        .filter((segment) => segment.stepId === "s0")
+        .sort((a, b) => a.plateId - b.plateId)
+        .map((segment) => segment.end - segment.start);
+    expect(firstStep(wider)).toEqual(firstStep(base));
+  });
+
   it("reports move segments along the planned path", () => {
     const moves = simulate(lineTwin(), config()).segments.filter((segment) => segment.kind === "move");
     expect(moves.length).toBe(10);

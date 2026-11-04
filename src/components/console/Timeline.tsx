@@ -9,7 +9,7 @@ import { RATES, usePlayback } from "./playback";
 const LANE_H = 12;
 const GUTTER = 74;
 const BAR_H = 7;
-const COLORS = { "wf-viability": "#7aa31f", other: "#5a90ea", failed: "#ff6a5c", move: "#8a877c", label: "#7d7a70", rule: "rgba(237,233,222,0.09)" };
+const COLORS = { primary: "#7aa31f", other: "#5a90ea", failed: "#ff6a5c", move: "#8a877c", label: "#7d7a70", rule: "rgba(237,233,222,0.09)" };
 
 type Lane = { id: string; y: number };
 
@@ -19,13 +19,13 @@ const orderLanes = (twin: LabTwin, result: SimResult): Lane[] => {
   return ids.map((id, index) => ({ id, y: index * LANE_H }));
 };
 
-const color = (segment: Segment): string => {
+const color = (segment: Segment, primaryId: string | undefined): string => {
   if (segment.failed) return COLORS.failed;
   if (segment.kind === "move") return COLORS.move;
-  return segment.workflowId === "wf-viability" ? COLORS["wf-viability"] : COLORS.other;
+  return segment.workflowId === primaryId ? COLORS.primary : COLORS.other;
 };
 
-const draw = (canvas: HTMLCanvasElement, lanes: Lane[], result: SimResult): void => {
+const draw = (canvas: HTMLCanvasElement, lanes: Lane[], result: SimResult, primaryId: string | undefined): void => {
   const ratio = window.devicePixelRatio || 1;
   const width = canvas.clientWidth;
   const height = lanes.length * LANE_H;
@@ -48,16 +48,16 @@ const draw = (canvas: HTMLCanvasElement, lanes: Lane[], result: SimResult): void
   for (const segment of result.segments) {
     const y = rows.get(segment.resourceId);
     if (y === undefined || segment.kind === "wait") continue;
-    context.fillStyle = color(segment);
+    context.fillStyle = color(segment, primaryId);
     const barWidth = Math.max(1, (segment.end - segment.start) * scale - 1);
     context.fillRect(GUTTER + segment.start * scale, y + (LANE_H - BAR_H) / 2 - 0.5, barWidth, BAR_H);
   }
 };
 
-function Legend() {
+function Legend({ primary }: { primary: string }) {
   return (
     <ul className="legend mono">
-      <li><i style={{ background: COLORS["wf-viability"] }} />Viability</li>
+      <li><i style={{ background: COLORS.primary }} />{primary}</li>
       <li><i style={{ background: COLORS.other }} />Other workflows</li>
       <li><i style={{ background: COLORS.move }} />Transport</li>
       <li><i style={{ background: COLORS.failed }} />Failure</li>
@@ -73,6 +73,7 @@ export function Timeline({ twin, result }: { twin: LabTwin; result: SimResult })
   const readout = useRef<HTMLSpanElement>(null);
   const [hover, setHover] = useState<Hover | null>(null);
   const lanes = useMemo(() => orderLanes(twin, result), [twin, result]);
+  const primaryId = twin.workflows[0]?.id;
   const playing = usePlayback((state) => state.playing);
   const rate = usePlayback((state) => state.rate);
   const { seek, setPlaying, setRate } = usePlayback.getState();
@@ -80,12 +81,12 @@ export function Timeline({ twin, result }: { twin: LabTwin; result: SimResult })
   useEffect(() => {
     const target = canvas.current;
     if (target === null) return;
-    const render = () => draw(target, lanes, result);
+    const render = () => draw(target, lanes, result, primaryId);
     render();
     const observer = new ResizeObserver(render);
     observer.observe(target);
     return () => observer.disconnect();
-  }, [lanes, result]);
+  }, [lanes, result, primaryId]);
 
   useEffect(
     () =>
@@ -129,7 +130,7 @@ export function Timeline({ twin, result }: { twin: LabTwin; result: SimResult })
           ))}
         </div>
         <span ref={readout} className="mono readout" aria-live="off">T+00:00:00</span>
-        <Legend />
+        <Legend primary={twin.workflows[0]?.name ?? "Workflow"} />
       </div>
       <div className="gantt" onPointerDown={onDown} onPointerMove={onMove} onPointerLeave={() => setHover(null)}>
         <canvas ref={canvas} role="img" aria-label={`Gantt chart of ${result.segments.length} activities across ${lanes.length} resources. Utilisation figures are listed in the results panel.`} />

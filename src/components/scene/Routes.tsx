@@ -4,11 +4,9 @@ import { Line } from "@react-three/drei";
 import { useMemo } from "react";
 import { planRoute, type Point } from "@/core/twin/routing";
 import type { LabTwin } from "@/core/twin/schema";
-import { toScene } from "./geometry";
+import { railOf, toScene } from "./geometry";
 import { SCENE } from "./palette";
 
-const RAIL_FROM = { x: 1.5, y: 4 };
-const RAIL_TO = { x: 11, y: 4 };
 const ROUTE_HEIGHT = 0.03;
 
 type Path = { key: string; points: Point[] };
@@ -26,17 +24,21 @@ const mobilePaths = (twin: LabTwin): Path[] =>
 
 export function Routes({ twin, selectedId }: { twin: LabTwin; selectedId: string | null }) {
   const paths = useMemo(() => mobilePaths(twin), [twin]);
-  const arm = twin.transports.find((item) => item.kind === "arm");
-  const reach = arm?.id === selectedId ? twin.instruments.filter((item) => arm.reach.includes(item.id)) : [];
+  const arms = twin.transports.filter((item) => item.kind === "arm");
+  const selected = arms.find((item) => item.id === selectedId);
+  const reach = selected ? twin.instruments.filter((item) => selected.reach.includes(item.id)) : [];
   return (
     <>
-      {arm ? <Line points={[toScene(RAIL_FROM, 0.9), toScene(RAIL_TO, 0.9)]} color={SCENE.ink} lineWidth={1.4} /> : null}
+      {arms.map((arm) => {
+        const { from, to } = railOf(twin, arm);
+        return <Line key={arm.id} points={[toScene(from, 0.9), toScene(to, 0.9)]} color={SCENE.ink} lineWidth={1.4} />;
+      })}
       {paths.map(({ key, points }) => (
         <Line key={key} points={points.map((point) => toScene(point, ROUTE_HEIGHT))} color={SCENE.accent} lineWidth={1} dashed dashSize={0.18} gapSize={0.14} transparent opacity={0.55} />
       ))}
-      {arm
+      {selected
         ? reach.map((item) => (
-            <Line key={item.id} points={[toScene({ x: item.x, y: 4 }, 0.9), toScene(item, item.size.h)]} color={SCENE.accent} lineWidth={1} transparent opacity={0.7} />
+            <Line key={item.id} points={[toScene({ x: item.x, y: selected.homeY }, 0.9), toScene(item, item.size.h)]} color={SCENE.accent} lineWidth={1} transparent opacity={0.7} />
           ))
         : null}
     </>

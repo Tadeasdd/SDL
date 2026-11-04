@@ -29,7 +29,8 @@ export const computeLandingFigures = (): LandingFigures => {
 
   const baseline = monteCarlo(twin, EXAMPLE_CONFIG, RUNS);
   const ranked = rankInterventions(twin, EXAMPLE_CONFIG, RUNS);
-  const top = ranked[0];
+  // The headline is the fix for what the agent flagged, which ties with buying a new reader.
+  const top = ranked.find((item) => item.id.startsWith("restore-")) ?? ranked[0];
   if (top === undefined) throw new Error("No interventions to rank.");
   const limiter = Object.entries(baseline.bottleneckShare).sort((a, b) => b[1] - a[1])[0]?.[0] ?? "unknown";
 

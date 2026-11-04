@@ -1,3 +1,4 @@
+import { blockedStep, feasibleInstruments } from "../twin/feasible";
 import { createRouter, type Leg, type Point } from "../twin/routing";
 import type { Instrument, LabTwin, Step, Transport, Workflow } from "../twin/schema";
 import { EventQueue } from "./queue";
@@ -7,6 +8,7 @@ import type { ResourceStat, Segment, SimConfig, SimResult } from "./types";
 const MIN_DURATION_SHARE = 0.3;
 const DEGRADED_SLOWDOWN = 1.25;
 const SECONDS_PER_HOUR = 3600;
+const PLATE_STREAM_STRIDE = 100_003;
 
 type Resource = {
   id: string;
@@ -20,7 +22,7 @@ type Resource = {
   failures: number;
 };
 
-type Plate = { id: number; workflow: Workflow; at: string | null; releasedAt: number };
+type Plate = { id: number; workflow: Workflow; at: string | null; releasedAt: number; rng: Rng };
 
 const newResource = (id: string, kind: ResourceStat["kind"], capacity: number): Resource => ({
   id,
@@ -52,7 +54,6 @@ const pickBottleneck = (resources: readonly ResourceStat[]): string | null => {
  * it is the simulation clock, but it never escapes: the twin is read-only and the result is a plain value.
  */
 export const simulate = (twin: LabTwin, config: SimConfig): SimResult => {
-  const rng: Rng = createRng(config.seed);
   const events = new EventQueue();
   const route = createRouter(twin);
   const segments: Segment[] = [];
@@ -105,25 +106,24 @@ export const simulate = (twin: LabTwin, config: SimConfig): SimResult => {
     next();
   };
 
-  const eligible = (plate: Plate, step: Step): Instrument[] =>
-    twin.instruments.filter(
-      (item) =>
-        item.state !== "offline" &&
-        item.capabilities.includes(step.capability) &&
-        (plate.at === null || route(plate.at, item.id) !== null),
-    );
+  const feasibility = new Map(twin.workflows.map((item) => [item.id, feasibleInstruments(twin, item, route)]));
 
-  const chooseInstrument = (plate: Plate, step: Step): Instrument => {
+  const assertRunnable = (workflow: Workflow): void => {
+    const step = workflow.steps[blockedStep(feasibility.get(workflow.id) ?? [])];
+    if (step !== undefined) {
+      throw new Error(`No reachable instrument provides "${step.capability}" for step "${step.name}".`);
+    }
+  };
+
+  const eligible = (plate: Plate, index: number): Instrument[] =>
+    (feasibility.get(plate.workflow.id)?.[index] ?? []).filter((item) => plate.at === null || route(plate.at, item.id) !== null);
+
+  const chooseInstrument = (plate: Plate, index: number): Instrument => {
     const load = (item: Instrument): number => {
       const state = resource(item.id);
       return (state.busy + state.queue.length) / state.capacity;
     };
-    const ranked = [...eligible(plate, step)].sort((a, b) => load(a) - load(b));
-    const chosen = ranked[0];
-    if (chosen === undefined) {
-      throw new Error(`No reachable instrument provides "${step.capability}" for step "${step.name}".`);
-    }
-    return chosen;
+    return [...eligible(plate, index)].sort((a, b) => load(a) - load(b))[0] as Instrument;
   };
 
   const legDuration = (leg: Leg, transport: Transport): number => {
@@ -164,7 +164,7 @@ export const simulate = (twin: LabTwin, config: SimConfig): SimResult => {
     });
   };
 
-  const sampleDuration = (step: Step, instrument: Instrument): { seconds: number; failed: boolean } => {
+  const sampleDuration = ({ rng }: Plate, step: Step, instrument: Instrument): { seconds: number; failed: boolean } => {
     const floor = step.duration.meanS * MIN_DURATION_SHARE;
     const nominal = Math.max(floor, sampleNormal(rng, step.duration.meanS, step.duration.sdS));
     const base = instrument.state === "degraded" ? nominal * DEGRADED_SLOWDOWN : nominal;
@@ -181,7 +181,7 @@ export const simulate = (twin: LabTwin, config: SimConfig): SimResult => {
   };
 
   const process = (plate: Plate, index: number, step: Step, instrument: Instrument): void => {
-    const { seconds, failed } = sampleDuration(step, instrument);
+    const { seconds, failed } = sampleDuration(plate, step, instrument);
     const start = now;
     const state = resource(instrument.id);
     state.busyS += seconds;
@@ -210,7 +210,7 @@ export const simulate = (twin: LabTwin, config: SimConfig): SimResult => {
       finish(plate);
       return;
     }
-    const instrument = chooseInstrument(plate, step);
+    const instrument = chooseInstrument(plate, index);
     const legs = plate.at === null ? [] : (route(plate.at, instrument.id)?.legs ?? []);
     // Instruments have no input buffer, so the destination is reserved before the final leg. Earlier legs
     // run first: the plate stages at the last hand-off, as a real scheduler would stage it, instead of
@@ -236,8 +236,11 @@ export const simulate = (twin: LabTwin, config: SimConfig): SimResult => {
     for (const demand of config.demands) {
       const workflow = twin.workflows.find((item) => item.id === demand.workflowId);
       if (workflow === undefined) throw new Error(`Unknown workflow ${demand.workflowId}.`);
+      assertRunnable(workflow);
       for (let index = 0; index < demand.plates; index += 1) {
-        const plate: Plate = { id: plateId, workflow, at: null, releasedAt: 0 };
+        // One stream per plate: a scenario that reorders events still gives each plate the same draws.
+        const rng = createRng(Math.imul(config.seed, PLATE_STREAM_STRIDE) + plateId);
+        const plate: Plate = { id: plateId, workflow, at: null, releasedAt: 0, rng };
         plateId += 1;
         events.push(index * demand.intervalS, () => {
           if (wip < config.maxWip) admit(plate);

@@ -1,4 +1,5 @@
-import { planRoute } from "./routing";
+import { blockedStep, feasibleInstruments } from "./feasible";
+import { createRouter } from "./routing";
 import type { Instrument, LabTwin, Workflow, Zone } from "./schema";
 
 export type Issue = {
@@ -76,45 +77,29 @@ const reachIssues = (twin: LabTwin): Issue[] => {
   );
 };
 
-const usable = (twin: LabTwin, capability: string): Instrument[] =>
-  twin.instruments.filter((item) => item.state !== "offline" && item.capabilities.includes(capability));
-
-const continuityIssue = (twin: LabTwin, workflow: Workflow, index: number): Issue[] => {
-  const from = workflow.steps[index];
-  const to = workflow.steps[index + 1];
-  if (from === undefined || to === undefined) return [];
-  const connected = usable(twin, from.capability).some((source) =>
-    usable(twin, to.capability).some((target) => planRoute(twin, source.id, target.id) !== null),
-  );
-  if (connected) return [];
-  return [{
-    severity: "error",
-    code: "workflow-no-route",
-    message: `${workflow.name}: no transport path from "${from.name}" to "${to.name}".`,
-    entityId: workflow.id,
-  }];
-};
-
 const workflowIssues = (twin: LabTwin, workflow: Workflow): Issue[] => {
-  const missing = workflow.steps
-    .filter((step) => usable(twin, step.capability).length === 0)
-    .map((step): Issue => ({
+  const feasible = feasibleInstruments(twin, workflow, createRouter(twin));
+  const blocked = blockedStep(feasible);
+  const step = workflow.steps[blocked];
+  if (step !== undefined) {
+    const hasInstrument = twin.instruments.some((item) => item.state !== "offline" && item.capabilities.includes(step.capability));
+    return [{
       severity: "error",
-      code: "workflow-no-instrument",
-      message: `${workflow.name}: nothing online provides "${step.capability}" for step "${step.name}".`,
+      code: hasInstrument ? "workflow-no-route" : "workflow-no-instrument",
+      message: hasInstrument
+        ? `${workflow.name}: no transport path onward from "${step.name}".`
+        : `${workflow.name}: nothing online provides "${step.capability}" for step "${step.name}".`,
       entityId: workflow.id,
-    }));
-  if (missing.length > 0) return missing;
-
-  const sopOnly = workflow.steps
-    .filter((step) => step.duration.source === "sop")
-    .map((step): Issue => ({
+    }];
+  }
+  return workflow.steps
+    .filter((item) => item.duration.source === "sop")
+    .map((item): Issue => ({
       severity: "warning",
       code: "step-uncalibrated",
-      message: `${workflow.name}: "${step.name}" uses the SOP duration, not measured data.`,
+      message: `${workflow.name}: "${item.name}" uses the SOP duration, not measured data.`,
       entityId: workflow.id,
     }));
-  return [...workflow.steps.flatMap((_, index) => continuityIssue(twin, workflow, index)), ...sopOnly];
 };
 
 const lowConfidence = (twin: LabTwin): Issue[] =>

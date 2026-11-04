@@ -28,6 +28,7 @@ type ConsoleState = {
   view: View;
   source: "replay" | "live";
   docs: EvidenceDoc[];
+  exampleDocs: EvidenceDoc[];
   agent: AgentView;
   queue: AgentEvent[];
   speed: 1 | 4;
@@ -72,6 +73,7 @@ export const useConsole = create<ConsoleState>((set, get) => ({
   view: "map",
   source: "replay",
   docs: [],
+  exampleDocs: [],
   agent: blank(),
   queue: [],
   speed: 1,
@@ -81,12 +83,13 @@ export const useConsole = create<ConsoleState>((set, get) => ({
   sim: initialSim(),
 
   setView: (view) => set({ view }),
-  init: (docs) => set({ docs }),
+  init: (docs) => set({ docs, exampleDocs: docs }),
 
   startReplay: () =>
     set((state) => ({
       source: "replay",
-      queue: replayEvents(state.docs),
+      docs: state.exampleDocs,
+      queue: replayEvents(state.exampleDocs),
       agent: { ...blank(), status: "running" },
       sim: initialSim(),
       selectedId: null,

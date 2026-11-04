@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { emptyTwin, entityCount, upsertInstrument, upsertZone } from "@/core/twin/mutations";
+import { feasibleInstruments } from "@/core/twin/feasible";
 import { createRouter, pathLength, planRoute } from "@/core/twin/routing";
 import { LabTwinSchema } from "@/core/twin/schema";
 import { hasErrors, validateTwin } from "@/core/twin/validate";
@@ -155,5 +156,50 @@ describe("validator", () => {
       zones: [zone("a", 0, { provenance: { evidence: [{ docId: "d", locator: "l" }], confidence: 0.3, status: "inferred" } })],
     });
     expect(codes(twin)).toContain("low-confidence");
+  });
+});
+
+describe("workflow feasibility", () => {
+  const chain = () =>
+    lineTwin({
+      instruments: [
+        instrument("a1", "first", { x: 1 }),
+        instrument("a2", "first", { x: 2 }),
+        instrument("b1", "second", { x: 3 }),
+      ],
+      transports: [arm(["a2", "b1"])],
+    });
+
+  it("excludes an instrument no later step can be reached from", () => {
+    const flow = chain().workflows[0]!;
+    const feasible = feasibleInstruments(chain(), flow, createRouter(chain()));
+    expect(feasible[0]?.map((item) => item.id)).toEqual(["a2"]);
+  });
+
+  it("flags a chain where every pair has a route but no end-to-end path exists", () => {
+    const twin = lineTwin({
+      instruments: [
+        instrument("a", "first", { x: 1 }),
+        instrument("b1", "second", { x: 2 }),
+        instrument("b2", "second", { x: 3 }),
+        instrument("c", "third", { x: 4 }),
+      ],
+      transports: [arm(["a", "b1"]), arm(["b2", "c"], { id: "arm2" })],
+      workflows: [workflow([["first", 10], ["second", 10], ["third", 10]])],
+    });
+    expect(feasibleInstruments(twin, twin.workflows[0]!, createRouter(twin))[0]).toHaveLength(0);
+    expect(codes(twin)).toContain("workflow-no-route");
+  });
+
+  it("does not relay a plate through an offline instrument", () => {
+    const twin = lineTwin({
+      instruments: [
+        instrument("i1", "first", { x: 1 }),
+        instrument("relay", "none", { x: 2, state: "offline" }),
+        instrument("i2", "second", { x: 3 }),
+      ],
+      transports: [arm(["i1", "relay"]), arm(["relay", "i2"], { id: "arm2" })],
+    });
+    expect(planRoute(twin, "i1", "i2")).toBeNull();
   });
 });

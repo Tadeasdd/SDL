@@ -10,15 +10,19 @@ export const maxDuration = 300;
 
 const RUNS_PER_WINDOW = 3;
 const WINDOW_MS = 10 * 60 * 1000;
+const GLOBAL_RUNS_PER_WINDOW = 20;
+const MAX_BODY_BYTES = 6 * 1024 * 1024;
 const allowRun = createRateLimiter(RUNS_PER_WINDOW, WINDOW_MS);
+const allowGlobalRun = createRateLimiter(GLOBAL_RUNS_PER_WINDOW, WINDOW_MS);
 
 const fail = (status: number, error: string): Response =>
   Response.json({ success: false, data: null, error }, { status });
 
 const hasKey = (): boolean => Boolean(process.env.ANTHROPIC_API_KEY);
 
+/** The rightmost forwarded address is the one our own proxy appended. Entries left of it are client-supplied. */
 const clientAddress = (request: Request): string =>
-  request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ?? "local";
+  request.headers.get("x-real-ip") ?? request.headers.get("x-forwarded-for")?.split(",").at(-1)?.trim() ?? "local";
 
 const describeFailure = (error: unknown): string => {
   if (error instanceof Anthropic.AuthenticationError) return "The server's API key was rejected.";
@@ -34,7 +38,10 @@ export function GET(): Response {
 
 export async function POST(request: Request): Promise<Response> {
   if (!hasKey()) return fail(503, "Live mode is not configured on this server.");
-  if (!allowRun(clientAddress(request))) return fail(429, "Too many runs. Wait a few minutes and try again.");
+  if (Number(request.headers.get("content-length") ?? 0) > MAX_BODY_BYTES) return fail(413, "Evidence is too large.");
+  if (!allowRun(clientAddress(request)) || !allowGlobalRun("all")) {
+    return fail(429, "Too many runs. Wait a few minutes and try again.");
+  }
 
   const body: unknown = await request.json().catch(() => null);
   const parsed = LiveRequestSchema.safeParse(body);
@@ -48,16 +55,17 @@ export async function POST(request: Request): Promise<Response> {
   const stream = new ReadableStream<Uint8Array>({
     async start(controller) {
       const send = (event: AgentEvent) => controller.enqueue(encoder.encode(`${JSON.stringify(event)}\n`));
+      const twin = emptyTwin("live-lab", "Live mapping");
       try {
-        for await (const event of runAgent({ streamer, docs, twin: emptyTwin("live-lab", "Live mapping") })) {
-          if (request.signal.aborted) break;
-          send(event);
-        }
+        // The signal reaches the API call itself, so a disconnect stops spending tokens at once.
+        for await (const event of runAgent({ streamer, docs, twin, signal: request.signal })) send(event);
       } catch (error) {
-        console.error("Live agent run failed", error);
-        send({ type: "error", message: describeFailure(error) });
+        if (!request.signal.aborted) {
+          console.error("Live agent run failed", error);
+          send({ type: "error", message: describeFailure(error) });
+        }
       } finally {
-        controller.close();
+        if (!request.signal.aborted) controller.close();
       }
     },
   });
