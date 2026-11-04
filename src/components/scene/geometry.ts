@@ -30,9 +30,9 @@ export const pointAlong = (path: readonly Point[], share: number): Point => {
 
 const hash = (text: string): number => [...text].reduce((value, char) => (Math.imul(value, 31) + char.charCodeAt(0)) >>> 0, 7);
 
-const WALL_POINTS_PER_M = 90;
-const FLOOR_POINTS_PER_M2 = 34;
-const KIT_POINTS_PER_M2 = 620;
+const WALL_POINTS_PER_M = 150;
+const FLOOR_POINTS_PER_M2 = 46;
+const KIT_POINTS_PER_M2 = 900;
 const NOISE_M = 0.012;
 
 type Cloud = { positions: number[]; shades: number[] };
@@ -55,10 +55,10 @@ const sampleZone = ({ id, bounds }: Zone, out: Cloud, doorsAt: readonly Point[])
       : along < 2 * w + h ? [x + along - w - h, y + h]
       : [x, y + along - 2 * w - h];
     const isOpening = height < 2.05 && doorsAt.some((door) => Math.hypot(door.x - px, door.y - pz) < 0.5);
-    if (!isOpening) emit(px, height, pz, 0.22 + 0.34 * (height / WALL_HEIGHT));
+    if (!isOpening) emit(px, height, pz, 0.34 + 0.5 * (height / WALL_HEIGHT));
   }
   for (let index = 0; index < w * h * FLOOR_POINTS_PER_M2; index += 1) {
-    emit(x + rng() * w, 0, y + rng() * h, 0.1 + rng() * 0.1);
+    emit(x + rng() * w, 0, y + rng() * h, 0.16 + rng() * 0.16);
   }
 };
 
@@ -77,7 +77,7 @@ const sampleKit = (item: Instrument, out: Cloud): void => {
       : face < w * d + 2 * w * h + d * h ? [w / 2, v * h, u * d]
       : [-w / 2, v * h, u * d];
     out.positions.push(item.x + px - SITE.x, py, item.y + pz - SITE.y);
-    out.shades.push(0.42 + 0.4 * (py / h));
+    out.shades.push(0.6 + 0.4 * (py / h));
   }
 };
 

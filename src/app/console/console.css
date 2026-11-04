@@ -37,6 +37,9 @@
 .plan-tag { font-family: var(--mono); font-size: 0.2px; fill: var(--ink-2); }
 .plan-kit { cursor: pointer; outline: none; }
 .plan-kit:focus-visible rect { stroke: var(--accent); }
+.scene { position: relative; width: 100%; height: 100%; overflow: hidden; }
+.scene-labels { position: absolute; inset: 0; pointer-events: none; }
+.scene-labels span { position: absolute; left: 0; top: 0; will-change: transform; }
 .scene-zone { font-family: var(--mono); font-size: 9px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--ink-3); white-space: nowrap; }
 .scene-tag { font-family: var(--mono); font-size: 8.5px; padding: 1px 4px; color: var(--ink); background: rgba(11, 11, 10, 0.72); white-space: nowrap; }
 .scene-tag.is-selected { color: #0b0b0a; background: var(--accent); }
@@ -64,7 +67,11 @@
 .panel-center { top: 50%; bottom: auto; left: 50%; transform: translate(-50%, -50%); padding-bottom: 14px; animation: none; gap: 12px; }
 .panel-center p, .panel-center button { margin: 0 12px; }
 .stage-map .panel { bottom: 96px; }
-.stage-simulate .panel { bottom: 250px; }
+.stage-simulate .panel { bottom: 262px; }
+.stage-map .viewport { bottom: 56px; }
+.stage-simulate .viewport { bottom: 190px; }
+.stage-simulate .scene-zone { display: none; }
+.stage-report .hud { display: none; }
 @keyframes panel-in { from { opacity: 0; transform: translateY(6px); } }
 .panel-title { display: flex; justify-content: space-between; gap: 12px; padding: 10px 12px; font-family: var(--mono); font-weight: 400; font-size: 10px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--ink-2); border-bottom: 1px solid var(--line); }
 .panel-title span:last-child:not(:first-child) { color: var(--ink-3); letter-spacing: 0.04em; }
@@ -98,7 +105,7 @@
 .counts div { display: flex; flex-direction: column-reverse; }
 .counts dd { font-size: 24px; line-height: 1.1; font-weight: 500; font-variation-settings: "wdth" 118; font-variant-numeric: tabular-nums; }
 .dock-actions { display: flex; gap: 8px; }
-.dock-sim { height: 226px; display: flex; flex-direction: column; padding: 8px 12px; gap: 8px; }
+.dock-sim { height: 238px; display: flex; flex-direction: column; padding: 8px 12px; gap: 8px; }
 .transport { display: flex; align-items: center; gap: 10px; }
 .readout { color: var(--accent); font-variant-numeric: tabular-nums; min-width: 92px; }
 .legend { display: flex; gap: 14px; margin-left: auto; color: var(--ink-2); font-size: 9.5px; }
@@ -124,7 +131,7 @@
 .flag-good, .flag-confirmed { color: var(--good); border-color: var(--good); }
 .inspector-title { font-size: 19px; font-weight: 600; line-height: 1.15; }
 .inspector-sub { color: var(--ink-3); margin: 4px 0 12px; }
-.spec div { display: grid; grid-template-columns: 92px 1fr; gap: 8px; padding: 5px 0; border-top: 1px solid var(--line); }
+.spec div { display: grid; grid-template-columns: 108px 1fr; gap: 8px; padding: 5px 0; border-top: 1px solid var(--line); }
 .spec dd { color: var(--ink); word-break: break-word; }
 .steps { margin-top: 10px; }
 .steps li { display: grid; grid-template-columns: 1fr auto 42px; gap: 8px; align-items: baseline; padding: 4px 0; font-size: 12.5px; border-top: 1px solid var(--line); }
@@ -189,7 +196,7 @@
 .rank { width: 100%; border-collapse: collapse; font-size: 13px; }
 .rank th, .rank td { padding: 7px 10px 7px 0; text-align: left; border-bottom: 1px solid var(--line); font-weight: 400; }
 .rank thead th { font-family: var(--mono); font-size: 9.5px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--ink-3); }
-.rank td:nth-child(2) { display: flex; align-items: center; gap: 10px; min-width: 170px; }
+.rank-cell { display: flex; align-items: center; gap: 10px; min-width: 170px; }
 .rank-bar { flex: 1; height: 5px; background: var(--line); }
 .rank-bar i { display: block; height: 100%; background: var(--accent); }
 .ledger li { display: grid; grid-template-columns: 34px minmax(0, 1fr) minmax(0, 1fr); gap: 16px; padding: 10px 0; font-size: 13.5px; border-bottom: 1px solid var(--line); }
@@ -228,7 +235,7 @@
   .tab:first-child { border-left: 0; }
   .tab:last-child { border-right: 0; }
   .stage { overflow: visible; display: flex; flex-direction: column; gap: 8px; padding-bottom: 16px; }
-  .viewport { position: relative; inset: auto; height: 46vh; min-height: 280px; }
+  .viewport, .stage-map .viewport, .stage-simulate .viewport { position: relative; inset: auto; height: 46vh; min-height: 280px; }
   .panel, .stage-map .panel, .stage-simulate .panel, .dock, .report { position: relative; inset: auto; left: auto; right: auto; top: auto; bottom: auto; width: auto; margin: 0 16px; }
   .panel-center { transform: none; }
   .feed { max-height: 320px; }

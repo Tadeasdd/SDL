@@ -1,6 +1,6 @@
 "use client";
 
-import { Edges, Html } from "@react-three/drei";
+import { Edges } from "@react-three/drei";
 import { useFrame } from "@react-three/fiber";
 import { useMemo, useRef } from "react";
 import type { Group, MeshBasicMaterial } from "three";
@@ -24,11 +24,10 @@ type Props = {
   segments?: readonly Segment[];
   isSelected: boolean;
   isTouched: boolean;
-  showLabel: boolean;
   onSelect?: (id: string) => void;
 };
 
-export function InstrumentBody({ item, segments, isSelected, isTouched, showLabel, onSelect }: Props) {
+export function InstrumentBody({ item, segments, isSelected, isTouched, onSelect }: Props) {
   const group = useRef<Group>(null);
   const light = useRef<MeshBasicMaterial>(null);
   const { w, d, h } = item.size;
@@ -62,11 +61,6 @@ export function InstrumentBody({ item, segments, isSelected, isTouched, showLabe
         <planeGeometry args={[w * 0.82, d * 0.82]} />
         <meshBasicMaterial ref={light} color={SCENE.accent} transparent opacity={0} />
       </mesh>
-      {showLabel ? (
-        <Html position={[0, h + 0.22, 0]} center zIndexRange={[6, 0]} style={{ pointerEvents: "none" }}>
-          <span className={`scene-tag${isSelected ? " is-selected" : ""}${item.state === "offline" ? " is-offline" : ""}`}>{item.id}</span>
-        </Html>
-      ) : null}
     </group>
   );
 }

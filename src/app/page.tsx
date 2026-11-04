@@ -42,7 +42,7 @@ export default function Home() {
         <dl className="readout-strip">
           <div><dd>{figures.documents}</dd><dt className="label">Documents read</dt></div>
           <div><dd>{figures.entities}</dd><dt className="label">Entities mapped</dt></div>
-          <div><dd>{figures.findings.length}</dd><dt className="label">Contradictions surfaced</dt></div>
+          <div><dd>{figures.findings.length}</dd><dt className="label">Findings surfaced</dt></div>
           <div><dd>{figures.baseline.toFixed(2)}</dd><dt className="label">Plates per hour, simulated</dt></div>
         </dl>
       </header>

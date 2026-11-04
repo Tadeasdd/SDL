@@ -86,6 +86,7 @@ export const REPLAY_SCRIPT: ReplayStep[] = [
   reading("network-scan", "The scan disagrees with the register in three places: RDR-02 is unreachable, INC-01 reports 22 plates rather than 44, and CFG-01 is on the network but not in the register."),
   reading("sop-117", "SOP-117 gives the viability sequence and nominal times. It also says the arm places plates on the imager stage. I need to check that against the rail."),
   reading("sop-122"),
+  reading("run-log", "The run log is the only measured timing in the pack, with hundreds of steps across two workflows. Some rows are ABORT and must not count."),
   reading("facilities", "The handover notes settle several questions: RDR-02 is out for repair, the AMR needs 900 mm and D-3 is 850 mm, and the rail ends in the bay, so the arm cannot serve the imager."),
 
   { ...zone(BAY, "Automation Bay", "automation", "RM-101", 0, 0, 13, 8), thought: "Laying out the shell from the drawing. Rooms and door widths are confirmed by the survey." },
@@ -179,7 +180,7 @@ export const REPLAY_SCRIPT: ReplayStep[] = [
   ...LOG_STEPS.map((name, index): ReplayStep => ({
     tool: "fit_durations",
     input: { docId: "run-log", step: name },
-    ...(index === 0 ? { thought: "SOP times are nominal. The run log has hundreds of timed steps, so I fit each one from data and exclude aborted runs." } : {}),
+    ...(index === 0 ? { thought: "SOP times are nominal, so I fit every step from the run log and exclude aborted runs." } : {}),
   })),
 
   {

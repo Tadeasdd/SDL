@@ -6,9 +6,9 @@ import type { LabTwin } from "@/core/twin/schema";
 import { clock, minutes } from "./format";
 import { RATES, usePlayback } from "./playback";
 
-const LANE_H = 13;
+const LANE_H = 12;
 const GUTTER = 74;
-const BAR_H = 8;
+const BAR_H = 7;
 const COLORS = { "wf-viability": "#7aa31f", other: "#5a90ea", failed: "#ff6a5c", move: "#8a877c", label: "#7d7a70", rule: "rgba(237,233,222,0.09)" };
 
 type Lane = { id: string; y: number };

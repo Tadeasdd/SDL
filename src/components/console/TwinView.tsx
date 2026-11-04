@@ -97,7 +97,7 @@ const describe = (twin: LabTwin, id: string): Described | null => {
       rows: [
         ["State", instrument.state],
         ["Capabilities", instrument.capabilities.join(", ")],
-        ["Capacity", `${instrument.capacity} plates`],
+        ["Capacity", `${instrument.capacity} ${instrument.capacity === 1 ? "plate" : "plates"}`],
         ["Interface", `${instrument.protocol}${instrument.address && instrument.address !== "none" ? ` ${instrument.address}` : ""}`],
         ["MTBF / MTTR", `${instrument.mtbfHours} h / ${instrument.mttrMinutes} min`],
         ["Position", `${instrument.x}, ${instrument.y} m`],

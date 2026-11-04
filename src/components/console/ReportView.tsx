@@ -53,8 +53,10 @@ function RankTable({ ranked }: { ranked: Intervention[] }) {
           <tr key={item.id}>
             <th scope="row">{item.name}</th>
             <td>
-              <span className="rank-bar"><i style={{ width: `${(Math.max(item.gainPct, 0) / top) * 100}%` }} /></span>
-              <span className="mono">{signed(item.gainPct, 1)}%</span>
+              <div className="rank-cell">
+                <span className="rank-bar"><i style={{ width: `${(Math.max(item.gainPct, 0) / top) * 100}%` }} /></span>
+                <span className="mono">{signed(item.gainPct, 1)}%</span>
+              </div>
             </td>
             <td className="mono">{signed(item.delta.p5)} to {signed(item.delta.p95)}</td>
             <td><span className={`flag ${item.isMeaningful && item.delta.mean > 0 ? "flag-good" : ""}`}>{item.isMeaningful ? (item.delta.mean > 0 ? "Clear gain" : "Clear loss") : "Within noise"}</span></td>

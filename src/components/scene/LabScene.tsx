@@ -1,6 +1,6 @@
 "use client";
 
-import { Html, OrbitControls } from "@react-three/drei";
+import { OrbitControls } from "@react-three/drei";
 import { Canvas, useFrame } from "@react-three/fiber";
 import { useMemo, useRef } from "react";
 import * as THREE from "three";
@@ -8,6 +8,7 @@ import type { Segment } from "@/core/sim/types";
 import type { LabTwin } from "@/core/twin/schema";
 import { buildCloud, toScene, wallSegments, WALL_HEIGHT } from "./geometry";
 import { InstrumentBody } from "./InstrumentBody";
+import { buildLabels, LabelLayer, LabelProjector } from "./Labels";
 import { SCENE } from "./palette";
 import { Plates, Transports } from "./Playback";
 import { Routes } from "./Routes";
@@ -24,6 +25,7 @@ export type SceneProps = {
   autoRotate?: boolean;
   interactive?: boolean;
   onSelect?: (id: string | null) => void;
+  cameraPosition?: [number, number, number];
 };
 
 function Cloud({ twin }: { twin: LabTwin }) {
@@ -36,7 +38,7 @@ function Cloud({ twin }: { twin: LabTwin }) {
   }, [twin]);
   return (
     <points geometry={geometry}>
-      <pointsMaterial size={0.022} vertexColors transparent opacity={0.85} depthWrite={false} sizeAttenuation />
+      <pointsMaterial size={0.03} vertexColors transparent opacity={0.95} depthWrite={false} sizeAttenuation />
     </points>
   );
 }
@@ -49,7 +51,7 @@ function Walls({ twin }: { twin: LabTwin }) {
   }, [twin]);
   return (
     <lineSegments geometry={geometry}>
-      <lineBasicMaterial color={SCENE.ink} transparent opacity={0.34} />
+      <lineBasicMaterial color={SCENE.ink} transparent opacity={0.5} />
     </lineSegments>
   );
 }
@@ -81,14 +83,6 @@ function Doors({ twin, minDoorMm }: { twin: LabTwin; minDoorMm: number }) {
   ));
 }
 
-function ZoneLabels({ twin }: { twin: LabTwin }) {
-  return twin.zones.map((zone) => (
-    <Html key={zone.id} position={toScene({ x: zone.bounds.x + 0.5, y: zone.bounds.y + 0.4 }, WALL_HEIGHT)} zIndexRange={[5, 0]} style={{ pointerEvents: "none" }}>
-      <span className="scene-zone">{zone.name}</span>
-    </Html>
-  ));
-}
-
 const SWEEP_SPAN_M = 26;
 const SWEEP_SECONDS = 5;
 
@@ -107,7 +101,7 @@ function Sweep() {
 }
 
 function Contents(props: SceneProps) {
-  const { twin, segments, selectedId, touchedId, showCloud, showRoutes, showLabels, isScanning, onSelect } = props;
+  const { twin, segments, selectedId, touchedId, showCloud, showRoutes, isScanning, onSelect } = props;
   const minDoorMm = Math.max(0, ...twin.transports.map((item) => item.minDoorMm ?? 0));
   return (
     <>
@@ -125,11 +119,9 @@ function Contents(props: SceneProps) {
           segments={segments}
           isSelected={item.id === selectedId}
           isTouched={item.id === touchedId}
-          showLabel={showLabels ?? false}
           onSelect={onSelect}
         />
       ))}
-      {showLabels ? <ZoneLabels twin={twin} /> : null}
       {showRoutes ? <Routes twin={twin} selectedId={selectedId ?? null} /> : null}
       <Transports twin={twin} segments={segments} selectedId={selectedId ?? null} onSelect={onSelect} />
       {segments ? <Plates twin={twin} segments={segments} /> : null}
@@ -139,28 +131,34 @@ function Contents(props: SceneProps) {
 }
 
 export default function LabScene(props: SceneProps) {
-  const { autoRotate = false, interactive = true, onSelect } = props;
+  const { twin, selectedId, showLabels = false, autoRotate = false, interactive = true, onSelect, cameraPosition = [-11, 18, 21] } = props;
+  const labelRoot = useRef<HTMLDivElement>(null);
+  const labels = useMemo(() => (showLabels ? buildLabels(twin, selectedId ?? null) : []), [showLabels, twin, selectedId]);
   return (
-    <Canvas
-      camera={{ position: [-13, 15, 17], fov: 38, near: 0.1, far: 200 }}
-      dpr={[1, 2]}
-      gl={{ antialias: true, alpha: true }}
-      onPointerMissed={() => onSelect?.(null)}
-      aria-label="3D view of the lab digital twin"
-    >
-      <fog attach="fog" args={[SCENE.bg, 30, 62]} />
-      <Contents {...props} />
-      <OrbitControls
-        enabled={interactive}
-        enablePan={interactive}
-        enableZoom={interactive}
-        autoRotate={autoRotate}
-        autoRotateSpeed={0.5}
-        maxPolarAngle={Math.PI / 2.1}
-        minDistance={6}
-        maxDistance={46}
-        target={[0, 0.4, 0]}
-      />
-    </Canvas>
+    <div className="scene">
+      <Canvas
+        camera={{ position: cameraPosition, fov: 38, near: 0.1, far: 200 }}
+        dpr={[1, 2]}
+        gl={{ antialias: true, alpha: true }}
+        onPointerMissed={() => onSelect?.(null)}
+        aria-label="3D view of the lab digital twin"
+      >
+        <fog attach="fog" args={[SCENE.bg, 38, 80]} />
+        <Contents {...props} />
+        <LabelProjector root={labelRoot} />
+        <OrbitControls
+          enabled={interactive}
+          enablePan={interactive}
+          enableZoom={interactive}
+          autoRotate={autoRotate}
+          autoRotateSpeed={0.5}
+          maxPolarAngle={Math.PI / 2.1}
+          minDistance={6}
+          maxDistance={60}
+          target={[0, 0.4, 0]}
+        />
+      </Canvas>
+      <LabelLayer labels={labels} root={labelRoot} />
+    </div>
   );
 }

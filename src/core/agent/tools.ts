@@ -85,7 +85,7 @@ const entityTool = <S extends z.ZodType<{ id: string; provenance: { evidence: Ev
   define({
     description: `Create or replace a ${noun} in the twin. Every ${noun} must cite evidence.`,
     schema,
-    label: (input) => `${noun} ${input.id}`,
+    label: (input) => input.id,
     run: (state, input) => {
       assertCitations(state, input.provenance.evidence);
       return {
