@@ -31,7 +31,7 @@ const LAYERS: { id: keyof Layers; label: string }[] = [
 ];
 
 const delayFor = (event: AgentEvent): number => {
-  if (event.type === "thought") return 1100 + Math.min(event.text.length * 9, 1100);
+  if (event.type === "thought") return 450 + Math.min(event.text.length * 5, 650);
   return event.type === "tool" ? 70 : 110;
 };
 
@@ -178,7 +178,7 @@ function Viewport() {
         />
       )}
       {hasWebGL ? <Hud mode={mode} onMode={setMode} /> : <p className="hud mono">WebGL unavailable. Showing plan view.</p>}
-      <p className="viewport-note mono">{isPlan ? "Plan view, 1 m grid" : "Point cloud is synthesised from the twin, not a captured scan"}</p>
+      <p className="viewport-note mono">{isPlan ? "Plan view" : "Point cloud is synthesised from the twin, not a captured scan"}</p>
     </div>
   );
 }

@@ -243,7 +243,8 @@
   .dock-map { height: auto; flex-direction: column; align-items: stretch; padding: 12px; }
   .counts { flex-wrap: wrap; gap: 12px 20px; }
   .dock-actions { flex-wrap: wrap; }
-  .dock-sim { height: 300px; }
+  .dock-sim { height: 320px; }
+  .transport { flex-wrap: wrap; }
   .legend { display: none; }
   .plan { padding: 44px 8px 8px; }
   .viewport-note { display: none; }

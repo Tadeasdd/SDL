@@ -15,7 +15,9 @@ function Lines({ doc, quote }: { doc: EvidenceDoc; quote?: string }) {
   const hit = useRef<HTMLLIElement>(null);
   const lines = useMemo(() => doc.content.split("\n"), [doc]);
   const target = quote === undefined ? -1 : lines.findIndex((line) => flatten(line).includes(flatten(quote)));
-  useEffect(() => hit.current?.scrollIntoView({ block: "center" }), [target]);
+  useEffect(() => {
+    void hit.current?.scrollIntoView({ block: "center" });
+  }, [target]);
   return (
     <ol className="source">
       {lines.map((line, index) => (
