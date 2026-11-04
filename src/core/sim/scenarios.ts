@@ -106,3 +106,32 @@ export const rankInterventions = (twin: LabTwin, config: SimConfig, runs: number
   });
   return [...ranked].sort((a, b) => b.delta.mean - a.delta.mean);
 };
+
+export type PathStep = {
+  intervention: Intervention;
+  throughputPerHour: number;
+  bottleneckId: string | null;
+};
+
+const dominantBottleneck = (result: MonteCarloResult): string | null => {
+  const ranked = Object.entries(result.bottleneckShare).sort((a, b) => b[1] - a[1]);
+  return ranked[0]?.[0] ?? null;
+};
+
+/** Greedy: take the best meaningful change, re-simulate, repeat. Shows where the constraint moves next. */
+export const improvementPath = (twin: LabTwin, config: SimConfig, runs: number, maxSteps = 3): PathStep[] => {
+  const walk = (current: LabTwin, remaining: number): PathStep[] => {
+    if (remaining === 0) return [];
+    const best = rankInterventions(current, config, runs).find((item) => item.isMeaningful && item.delta.mean > 0);
+    if (best === undefined) return [];
+    const next = applyPatches(current, best.patches);
+    const result = monteCarlo(next, config, runs);
+    const step = {
+      intervention: best,
+      throughputPerHour: result.throughputPerHour.mean,
+      bottleneckId: dominantBottleneck(result),
+    };
+    return [step, ...walk(next, remaining - 1)];
+  };
+  return walk(twin, maxSteps);
+};

@@ -1,0 +1,63 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="-20 -40 1240 770" font-family="monospace">
+<title>Drawing A-104 Rev C, Bay 4 general arrangement, scale 1:50, 1 m = 50 units</title>
+<rect x="-20" y="-40" width="1240" height="770" fill="#f4f1e8"/>
+<text x="0" y="-16" font-size="16" fill="#222">A-104 REV C / BAY 4 GENERAL ARRANGEMENT / 1:50</text>
+<rect id="RM-101" x="0" y="0" width="650" height="400" fill="none" stroke="#222" stroke-width="3"/>
+<text x="8" y="18" font-size="13" fill="#222">RM-101 AUTOMATION BAY</text>
+<rect id="RM-102" x="650" y="0" width="350" height="250" fill="none" stroke="#222" stroke-width="3"/>
+<text x="658" y="18" font-size="13" fill="#222">RM-102 PREP LAB</text>
+<rect id="RM-103" x="650" y="250" width="350" height="150" fill="none" stroke="#222" stroke-width="3"/>
+<text x="658" y="268" font-size="13" fill="#222">RM-103 IMAGING ROOM</text>
+<rect id="RM-104" x="1000" y="0" width="200" height="200" fill="none" stroke="#222" stroke-width="3"/>
+<text x="1008" y="18" font-size="13" fill="#222">RM-104 COLD ROOM</text>
+<rect id="RM-105" x="1000" y="200" width="200" height="200" fill="none" stroke="#222" stroke-width="3"/>
+<text x="1008" y="218" font-size="13" fill="#222">RM-105 CONSUMABLES STORE</text>
+<rect id="RM-106" x="0" y="400" width="1200" height="125.0" fill="none" stroke="#222" stroke-width="3"/>
+<text x="8" y="418" font-size="13" fill="#222">RM-106 SERVICE CORRIDOR</text>
+<rect id="RM-107" x="0" y="525.0" width="450" height="175.0" fill="none" stroke="#222" stroke-width="3"/>
+<text x="8" y="543.0" font-size="13" fill="#222">RM-107 WRITE-UP OFFICE</text>
+<line id="RAIL-ARM-01" x1="75.0" y1="200" x2="550" y2="200" stroke="#222" stroke-width="2" stroke-dasharray="10 5"/>
+<text x="225.0" y="192" font-size="12" fill="#222">ARM-01 RAIL 9.5 m</text>
+<rect id="HOT-01" x="45.0" y="55.00000000000001" width="60.0" height="40.0" fill="#fff" stroke="#222"/>
+<text x="48.0" y="108.0" font-size="11" fill="#222">HOT-01</text>
+<rect id="LH-01" x="145.0" y="50.0" width="90.0" height="50.0" fill="#fff" stroke="#222"/>
+<text x="148.0" y="113.0" font-size="11" fill="#222">LH-01</text>
+<rect id="DSP-01" x="287.5" y="57.49999999999999" width="45.0" height="35.0" fill="#fff" stroke="#222"/>
+<text x="290.5" y="105.5" font-size="11" fill="#222">DSP-01</text>
+<rect id="SEAL-01" x="385.0" y="60.0" width="30.0" height="30.0" fill="#fff" stroke="#222"/>
+<text x="388.0" y="103.0" font-size="11" fill="#222">SEAL-01</text>
+<rect id="PEEL-01" x="464.99999999999994" y="60.0" width="30.0" height="30.0" fill="#fff" stroke="#222"/>
+<text x="467.99999999999994" y="103.0" font-size="11" fill="#222">PEEL-01</text>
+<rect id="INC-01" x="122.50000000000001" y="290.00000000000006" width="75.0" height="60.0" fill="#fff" stroke="#222"/>
+<text x="125.50000000000001" y="363.0" font-size="11" fill="#222">INC-01</text>
+<rect id="CFG-01" x="267.5" y="297.5" width="45.0" height="45.0" fill="#fff" stroke="#222"/>
+<text x="270.5" y="355.5" font-size="11" fill="#222">CFG-01</text>
+<rect id="RDR-01" x="377.5" y="300.0" width="45.0" height="40.0" fill="#fff" stroke="#222"/>
+<text x="380.5" y="353.00000000000006" font-size="11" fill="#222">RDR-01</text>
+<rect id="RDR-02" x="477.50000000000006" y="300.0" width="45.0" height="40.0" fill="#fff" stroke="#222"/>
+<text x="480.50000000000006" y="353.00000000000006" font-size="11" fill="#222">RDR-02</text>
+<rect id="NEST-01" x="582.5" y="187.5" width="25.0" height="25.0" fill="#fff" stroke="#222"/>
+<text x="585.5" y="225.5" font-size="11" fill="#222">NEST-01</text>
+<rect id="IMG-01" x="810.0" y="297.5" width="80.0" height="55.00000000000001" fill="#fff" stroke="#222"/>
+<text x="813.0" y="365.5" font-size="11" fill="#222">IMG-01</text>
+<rect id="TC-01" x="735.0" y="57.49999999999999" width="30.0" height="35.0" fill="#fff" stroke="#222"/>
+<text x="738.0" y="105.5" font-size="11" fill="#222">TC-01</text>
+<rect id="TC-02" x="825.0" y="57.49999999999999" width="30.0" height="35.0" fill="#fff" stroke="#222"/>
+<text x="828.0" y="105.5" font-size="11" fill="#222">TC-02</text>
+<rect id="FRZ-01" x="1065.0" y="60.00000000000001" width="90.0" height="60.0" fill="#fff" stroke="#222"/>
+<text x="1068.0" y="133.0" font-size="11" fill="#222">FRZ-01</text>
+<circle id="D-1" cx="300" cy="400" r="7" fill="#f4f1e8" stroke="#b33" stroke-width="2"/>
+<text x="310" y="392" font-size="11" fill="#b33">D-1 1400 CLR (RM-101/RM-106)</text>
+<circle id="D-2" cx="650" cy="125.0" r="7" fill="#f4f1e8" stroke="#b33" stroke-width="2"/>
+<text x="660" y="117.0" font-size="11" fill="#b33">D-2 1000 CLR (RM-101/RM-102)</text>
+<circle id="D-3" cx="650" cy="325.0" r="7" fill="#f4f1e8" stroke="#b33" stroke-width="2"/>
+<text x="660" y="317.0" font-size="11" fill="#b33">D-3 850 CLR (RM-101/RM-103)</text>
+<circle id="D-4" cx="825.0" cy="400" r="7" fill="#f4f1e8" stroke="#b33" stroke-width="2"/>
+<text x="835.0" y="392" font-size="11" fill="#b33">D-4 1000 CLR (RM-103/RM-106)</text>
+<circle id="D-5" cx="1000" cy="100" r="7" fill="#f4f1e8" stroke="#b33" stroke-width="2"/>
+<text x="1010" y="92" font-size="11" fill="#b33">D-5 1000 CLR (RM-102/RM-104)</text>
+<circle id="D-6" cx="1100" cy="400" r="7" fill="#f4f1e8" stroke="#b33" stroke-width="2"/>
+<text x="1110" y="392" font-size="11" fill="#b33">D-6 1000 CLR (RM-105/RM-106)</text>
+<circle id="D-7" cx="200" cy="525.0" r="7" fill="#f4f1e8" stroke="#b33" stroke-width="2"/>
+<text x="210" y="517.0" font-size="11" fill="#b33">D-7 900 CLR (RM-106/RM-107)</text>
+</svg>

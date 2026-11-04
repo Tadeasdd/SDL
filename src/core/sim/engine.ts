@@ -211,12 +211,16 @@ export const simulate = (twin: LabTwin, config: SimConfig): SimResult => {
       return;
     }
     const instrument = chooseInstrument(plate, step);
-    // The destination is reserved before the plate moves: instruments have no input buffer.
-    acquire(instrument.id, plate, step, () => {
-      const legs = plate.at === null ? [] : (route(plate.at, instrument.id)?.legs ?? []);
-      runLegs(plate, step, legs, () => {
-        plate.at = instrument.id;
-        process(plate, index, step, instrument);
+    const legs = plate.at === null ? [] : (route(plate.at, instrument.id)?.legs ?? []);
+    // Instruments have no input buffer, so the destination is reserved before the final leg. Earlier legs
+    // run first: the plate stages at the last hand-off, as a real scheduler would stage it, instead of
+    // holding a busy instrument idle for the whole journey.
+    runLegs(plate, step, legs.slice(0, -1), () => {
+      acquire(instrument.id, plate, step, () => {
+        runLegs(plate, step, legs.slice(-1), () => {
+          plate.at = instrument.id;
+          process(plate, index, step, instrument);
+        });
       });
     });
   };

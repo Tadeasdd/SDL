@@ -1,0 +1,13 @@
+{
+  "id": "aldermoor-bay-4",
+  "name": "Aldermoor Institute · Bay 4",
+  "documents": [
+    { "id": "floorplan", "title": "Drawing A-104 Rev C", "kind": "drawing", "file": "floorplan.svg" },
+    { "id": "inventory", "title": "Asset register export", "kind": "table", "file": "inventory.csv" },
+    { "id": "network-scan", "title": "Network discovery scan", "kind": "scan", "file": "network-scan.json" },
+    { "id": "sop-117", "title": "SOP-117 Viability screen", "kind": "procedure", "file": "sop-117-viability-screen.md" },
+    { "id": "sop-122", "title": "SOP-122 Amplicon QC", "kind": "procedure", "file": "sop-122-amplicon-qc.md" },
+    { "id": "run-log", "title": "Instrument run log", "kind": "log", "file": "run-log.csv" },
+    { "id": "facilities", "title": "Facilities handover notes", "kind": "note", "file": "facilities-note.md" }
+  ]
+}
