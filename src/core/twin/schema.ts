@@ -82,7 +82,7 @@ export const TransportSchema = z.object({
   speedMps: z.number().positive(),
   handoffS: z.number().min(0),
   capacity: z.number().int().min(1),
-  /** Arms only: the instruments physically inside the arm's reach. */
+  /** Instruments this transport can serve. Arms: physical reach. AMRs: docking points. Empty on a mobile transport means anywhere. */
   reach: z.array(Id).default([]),
   /** Mobile transports only: the narrowest door they can pass. */
   minDoorMm: z.number().positive().optional(),

@@ -47,8 +47,9 @@ const doorsBetween = (twin: LabTwin, from: Instrument, to: Instrument, transport
 };
 
 const directLeg = (twin: LabTwin, transport: Transport, from: Instrument, to: Instrument): Leg | null => {
+  const restricted = transport.kind === "arm" || transport.reach.length > 0;
+  if (restricted && !(transport.reach.includes(from.id) && transport.reach.includes(to.id))) return null;
   if (transport.kind === "arm") {
-    if (!transport.reach.includes(from.id) || !transport.reach.includes(to.id)) return null;
     const path = [{ x: from.x, y: from.y }, { x: to.x, y: to.y }];
     return { transportId: transport.id, fromId: from.id, toId: to.id, path, distanceM: pathLength(path) };
   }
