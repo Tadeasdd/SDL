@@ -159,6 +159,7 @@ function Viewport() {
   const run = sim.comparison?.scenario.representative ?? sim.baseline?.representative;
   const segments = isSimulating ? run?.segments : undefined;
   const isPlan = mode === "plan" || !hasWebGL;
+  const isScanning = status === "running";
 
   return (
     <div className="viewport">
@@ -170,15 +171,15 @@ function Viewport() {
           segments={segments}
           selectedId={selectedId}
           touchedId={touched}
-          showCloud={layers.cloud}
+          showCloud={layers.cloud || isScanning}
           showRoutes={layers.routes}
           showLabels={layers.labels}
-          isScanning={status === "running"}
+          isScanning={isScanning}
           onSelect={select}
         />
       )}
       {hasWebGL ? <Hud mode={mode} onMode={setMode} /> : <p className="hud mono">WebGL unavailable. Showing plan view.</p>}
-      <p className="viewport-note mono">{isPlan ? "Plan view" : "Point cloud is synthesised from the twin, not a captured scan"}</p>
+      <p className="viewport-note mono">{isPlan ? "Plan view" : layers.cloud || isScanning ? "Point cloud is synthesised from the twin, not a captured scan" : "Instrument models are procedural, drawn to the sizes in the twin"}</p>
     </div>
   );
 }

@@ -19,7 +19,7 @@
 
 - The register says plate reader RDR-02 is in service. It has been silent for 11 days and went back to the vendor.
 - Reads take about 610 s against the 480 s in the SOP, and the SOP claims the arm reaches an imager in another room.
-- Restoring the reader gives about **+23%** throughput and moves the bottleneck to the imager.
+- Restoring the reader gives about **+22%** throughput and moves the bottleneck to the imager.
 - Door D-3 really is too narrow for the robot, yet widening it is **within noise**. A flagged problem is not always an expensive one.
 
 ![Simulate view](docs/img/simulate.jpg)
@@ -90,4 +90,4 @@ npm run test:e2e   # Playwright, after a build
 
 ## License
 
-MIT. Aldermoor Institute, its equipment and its model names are fictional.
+MIT. Aldermoor Institute is fictional. Its instruments are real commercial products, used by name only to make the example realistic. See [the example README](examples/aldermoor-bay-4/README.md). SDL is not affiliated with or endorsed by their manufacturers.

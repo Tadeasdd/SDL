@@ -4,30 +4,20 @@ import { useFrame } from "@react-three/fiber";
 import { useLayoutEffect, useMemo, useRef } from "react";
 import * as THREE from "three";
 import type { Segment } from "@/core/sim/types";
-import type { Point } from "@/core/twin/routing";
-import type { LabTwin, Transport } from "@/core/twin/schema";
+import type { LabTwin } from "@/core/twin/schema";
 import { usePlayback } from "../console/playback";
-import { pointAlong, railOf, toScene } from "./geometry";
-import { SCENE, seriesColor } from "./palette";
+import { toScene } from "./geometry";
+import { dockOf, type Dock } from "./layout";
+import { dockBlend, locate } from "./motion";
+import { seriesColor } from "./palette";
 
-const endOf = (segment: Segment, anchor: (id: string) => Point): Point => {
-  const path = segment.path;
-  return path === undefined ? anchor(segment.resourceId) : (path[path.length - 1] as Point);
-};
+/** Slightly larger than a real 128 x 85 mm plate, so it can be followed from the overview camera. */
+const PLATE_SIZE: [number, number, number] = [0.17, 0.03, 0.12];
+const ARM_CARRY_M = 1.3;
+const AMR_CARRY_M = 0.36;
 
-/** Where a timeline puts something at time t, or null before its first segment. */
-const locate = (timeline: readonly Segment[], t: number, anchor: (id: string) => Point): Point | null => {
-  let last: Segment | null = null;
-  for (const segment of timeline) {
-    if (segment.start > t) break;
-    last = segment;
-  }
-  if (last === null) return null;
-  if (last.path === undefined || t >= last.end) return endOf(last, anchor);
-  return pointAlong(last.path, (t - last.start) / Math.max(last.end - last.start, 1e-6));
-};
-
-const PLATE_SIZE: [number, number, number] = [0.2, 0.05, 0.14];
+const keyOf = (x: number, y: number): string => `${x}:${y}`;
+const mix = (from: number, to: number, share: number): number => from + (to - from) * share;
 
 export function Plates({ twin, segments }: { twin: LabTwin; segments: readonly Segment[] }) {
   const mesh = useRef<THREE.InstancedMesh>(null);
@@ -39,8 +29,9 @@ export function Plates({ twin, segments }: { twin: LabTwin; segments: readonly S
     }
     return [...byPlate.values()];
   }, [segments]);
-  const heights = useMemo(() => new Map(twin.instruments.map((item) => [item.id, item.size.h])), [twin]);
   const anchors = useMemo(() => new Map(twin.instruments.map((item) => [item.id, { x: item.x, y: item.y }])), [twin]);
+  const docks = useMemo(() => new Map(twin.instruments.map((item) => [keyOf(item.x, item.y), dockOf(twin, item)])), [twin]);
+  const kinds = useMemo(() => new Map(twin.transports.map((item) => [item.id, item])), [twin]);
   const dummy = useMemo(() => new THREE.Object3D(), []);
 
   useLayoutEffect(() => {
@@ -51,6 +42,21 @@ export function Plates({ twin, segments }: { twin: LabTwin; segments: readonly S
     });
     if (target.instanceColor !== null) target.instanceColor.needsUpdate = true;
   }, [plates, twin]);
+
+  /** Arm legs ride the rail between docks. AMR and walked legs stay on their route. */
+  const placeInFlight = (move: Segment, point: { x: number; y: number }, t: number): void => {
+    const path = move.path ?? [];
+    const share = (t - move.start) / Math.max(move.end - move.start, 1e-6);
+    const first = path[0];
+    const last = path[path.length - 1];
+    const near: Dock | undefined = first && last ? docks.get(share < 0.5 ? keyOf(first.x, first.y) : keyOf(last.x, last.y)) : undefined;
+    const carrier = kinds.get(move.resourceId);
+    const isArm = carrier?.kind === "arm";
+    const blend = dockBlend(share);
+    const carry = isArm ? ARM_CARRY_M : AMR_CARRY_M;
+    const y = isArm && near ? mix(carrier.homeY, near.y, blend) : point.y;
+    dummy.position.set(...toScene({ x: point.x, y }, mix(carry, near?.height ?? carry, blend)));
+  };
 
   useFrame(() => {
     const target = mesh.current;
@@ -63,8 +69,14 @@ export function Plates({ twin, segments }: { twin: LabTwin; segments: readonly S
         dummy.scale.setScalar(0);
       } else {
         const current = timeline.find((segment) => segment.start <= t && t < segment.end);
-        const height = current?.kind === "move" ? 1.15 : (heights.get(current?.resourceId ?? "") ?? 1) + 0.06;
-        dummy.position.set(...toScene(point, height));
+        const dock = docks.get(keyOf(point.x, point.y));
+        if (current?.kind === "move" && current.path !== undefined) {
+          placeInFlight(current, point, t);
+        } else if (dock !== undefined) {
+          dummy.position.set(...toScene(dock, dock.height));
+        } else {
+          dummy.position.set(...toScene(point, 1));
+        }
         dummy.scale.setScalar(1);
       }
       dummy.updateMatrix();
@@ -76,66 +88,7 @@ export function Plates({ twin, segments }: { twin: LabTwin; segments: readonly S
   return (
     <instancedMesh key={plates.length} ref={mesh} args={[undefined, undefined, Math.max(1, plates.length)]} frustumCulled={false}>
       <boxGeometry args={PLATE_SIZE} />
-      <meshBasicMaterial />
+      <meshStandardMaterial roughness={0.35} />
     </instancedMesh>
   );
-}
-
-function Mover({ twin, transport, timeline, isSelected, onSelect }: {
-  twin: LabTwin;
-  transport: Transport;
-  timeline: readonly Segment[];
-  isSelected: boolean;
-  onSelect?: (id: string) => void;
-}) {
-  const ref = useRef<THREE.Group>(null);
-  const home = { x: transport.homeX, y: transport.homeY };
-  const rail = useMemo(() => (transport.kind === "arm" ? railOf(twin, transport) : null), [twin, transport]);
-
-  useFrame(() => {
-    if (ref.current === null) return;
-    const point = locate(timeline, usePlayback.getState().t, () => home) ?? home;
-    const place = rail === null ? point : { x: Math.min(rail.to.x, Math.max(rail.from.x, point.x)), y: rail.from.y };
-    ref.current.position.set(...toScene(place));
-  });
-
-  const color = isSelected ? SCENE.accent : SCENE.ink;
-  const select = onSelect ? (event: { stopPropagation: () => void }) => { event.stopPropagation(); onSelect(transport.id); } : undefined;
-  return (
-    <group ref={ref} position={toScene(home)} onClick={select}>
-      {transport.kind === "arm" ? (
-        <mesh position={[0, 0.9, 0]}>
-          <boxGeometry args={[0.5, 0.26, 0.42]} />
-          <meshBasicMaterial color={color} />
-        </mesh>
-      ) : null}
-      {transport.kind === "amr" ? (
-        <mesh position={[0, 0.16, 0]}>
-          <cylinderGeometry args={[0.32, 0.32, 0.3, 24]} />
-          <meshBasicMaterial color={color} />
-        </mesh>
-      ) : null}
-      {transport.kind === "human" ? (
-        <mesh position={[0, 0.85, 0]}>
-          <capsuleGeometry args={[0.16, 1.2, 4, 12]} />
-          <meshBasicMaterial color={color} transparent opacity={0.7} />
-        </mesh>
-      ) : null}
-    </group>
-  );
-}
-
-export function Transports({ twin, segments, selectedId, onSelect }: {
-  twin: LabTwin;
-  segments?: readonly Segment[];
-  selectedId: string | null;
-  onSelect?: (id: string) => void;
-}) {
-  const timelines = useMemo(() => {
-    const moves = (segments ?? []).filter((segment) => segment.kind === "move");
-    return new Map(twin.transports.map((item) => [item.id, moves.filter((segment) => segment.resourceId === item.id)]));
-  }, [segments, twin]);
-  return twin.transports.map((transport) => (
-    <Mover key={transport.id} twin={twin} transport={transport} timeline={timelines.get(transport.id) ?? []} isSelected={transport.id === selectedId} onSelect={onSelect} />
-  ));
 }

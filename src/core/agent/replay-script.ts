@@ -104,28 +104,28 @@ export const REPLAY_SCRIPT: ReplayStep[] = [
   door("D-6", "z-store", "z-corridor", 22, 8, 1000),
   door("D-7", "z-corridor", "z-office", 4, 10.5, 900),
 
-  { ...instrument({ id: "HOT-01", name: "Plate Hotel", model: "HX-40 Hotel", category: "storage", zoneId: BAY, x: 1.5, y: 1.5, size: [1.2, 0.8, 1.6], capabilities: ["plate-supply"], capacity: 40, protocol: "SiLA2", address: "10.40.4.11", mtbfHours: 3000, mttrMinutes: 90 }), thought: "Placing equipment at its drawing position. Where the scan confirms a device, I take protocol and address from the scan." },
-  instrument({ id: "LH-01", name: "Liquid Handler", model: "Tessel LH-96", category: "liquid-handler", zoneId: BAY, x: 3.8, y: 1.5, size: [1.8, 1, 1.1], capabilities: ["liquid-transfer"], protocol: "SiLA2", address: "10.40.4.12", mtbfHours: 310, mttrMinutes: 45 }),
-  instrument({ id: "DSP-01", name: "Reagent Dispenser", model: "Quill D8", category: "dispenser", zoneId: BAY, x: 6.2, y: 1.5, size: [0.9, 0.7, 0.6], capabilities: ["reagent-dispense"], protocol: "SiLA2", address: "10.40.4.13", mtbfHours: 420, mttrMinutes: 30 }),
-  instrument({ id: "SEAL-01", name: "Plate Sealer", model: "Thermaseal T2", category: "sealer", zoneId: BAY, x: 8, y: 1.5, size: [0.6, 0.6, 0.5], capabilities: ["seal"], protocol: "serial", address: "10.40.4.31:ttyS1", mtbfHours: 600, mttrMinutes: 20 }),
-  instrument({ id: "PEEL-01", name: "Plate Peeler", model: "Thermaseal P2", category: "peeler", zoneId: BAY, x: 9.6, y: 1.5, size: [0.6, 0.6, 0.5], capabilities: ["peel"], protocol: "serial", address: "10.40.4.31:ttyS2", mtbfHours: 600, mttrMinutes: 20 }),
+  { ...instrument({ id: "HOT-01", name: "Plate Hotel", model: "LiCONiC LPX44", category: "storage", zoneId: BAY, x: 1.5, y: 3.1, size: [0.45, 0.6, 0.9], capabilities: ["plate-supply"], capacity: 44, protocol: "SiLA2", address: "10.40.4.11", mtbfHours: 3000, mttrMinutes: 90 }), thought: "Placing equipment at its drawing position. Where the scan confirms a device, I take protocol and address from the scan." },
+  instrument({ id: "LH-01", name: "Liquid Handler", model: "Hamilton Microlab STAR", category: "liquid-handler", zoneId: BAY, x: 3.8, y: 3.0, size: [1.99, 0.795, 0.903], capabilities: ["liquid-transfer"], protocol: "SiLA2", address: "10.40.4.12", mtbfHours: 310, mttrMinutes: 45 }),
+  instrument({ id: "DSP-01", name: "Reagent Dispenser", model: "Thermo Scientific Multidrop Combi", category: "dispenser", zoneId: BAY, x: 6.2, y: 3.235, size: [0.355, 0.33, 0.22], capabilities: ["reagent-dispense"], protocol: "serial", address: "10.40.4.31:ttyS3", mtbfHours: 420, mttrMinutes: 30 }),
+  instrument({ id: "SEAL-01", name: "Plate Sealer", model: "Azenta Automated Roll Heat Sealer", category: "sealer", zoneId: BAY, x: 8.0, y: 3.145, size: [0.23, 0.507, 0.276], capabilities: ["seal"], protocol: "serial", address: "10.40.4.31:ttyS1", mtbfHours: 600, mttrMinutes: 20 }),
+  instrument({ id: "PEEL-01", name: "Plate Peeler", model: "Azenta Automated Plate Seal Remover", category: "peeler", zoneId: BAY, x: 9.6, y: 3.15, size: [0.25, 0.5, 0.35], capabilities: ["peel"], protocol: "serial", address: "10.40.4.31:ttyS2", mtbfHours: 600, mttrMinutes: 20 }),
   {
     ...instrument({
-      id: "INC-01", name: "CO2 Incubator", model: "Cyto 44", category: "incubator", zoneId: BAY, x: 3.2, y: 6.4, size: [1.5, 1.2, 1.9], capabilities: ["incubate"], capacity: 22, protocol: "SiLA2", address: "10.40.4.14", mtbfHours: 2400, mttrMinutes: 120,
+      id: "INC-01", name: "CO2 Incubator", model: "LiCONiC STX44", category: "incubator", zoneId: BAY, x: 3.2, y: 4.925, size: [0.5, 0.65, 1.15], capabilities: ["incubate"], capacity: 22, protocol: "SiLA2", address: "10.40.4.14", mtbfHours: 2400, mttrMinutes: 120,
       provenance: {
-        evidence: [cite("network-scan", "device INC-01", '"plate_capacity": 22'), cite("inventory", "row INC-01", "Automated CO2 incubator,Cyto 44,Automation Bay,44")],
+        evidence: [cite("network-scan", "device INC-01", '"plate_capacity": 22'), cite("inventory", "row INC-01", "Automated CO2 incubator,LiCONiC STX44,Automation Bay,44")],
         confidence: 0.9,
         status: "conflict",
         note: "Register says 44. The device reports one cassette and 22 plates, and a live self-report outranks a 2023 register entry.",
       },
     }),
-    thought: "INC-01: the register says 44 plates, the device says 22 with one cassette installed. A live self-report beats a 2023 register entry, so I model 22 and flag it.",
+    thought: "INC-01: the register says 44 plates, the capacity of an STX44 with both cassettes. The device reports one cassette and 22 plates. A live self-report beats a 2023 register entry, so I model 22 and flag it.",
   },
   {
     ...instrument({
-      id: "CFG-01", name: "Plate Centrifuge", model: "Spindle C2", category: "centrifuge", zoneId: BAY, x: 5.8, y: 6.4, size: [0.9, 0.9, 0.7], capabilities: ["spin"], capacity: 2, protocol: "OPC-UA", address: "10.40.4.15", mtbfHours: 900, mttrMinutes: 40,
+      id: "CFG-01", name: "Plate Centrifuge", model: "Agilent Microplate Centrifuge", category: "centrifuge", zoneId: BAY, x: 4.8, y: 4.9, size: [0.45, 0.6, 0.3], capabilities: ["spin"], capacity: 2, protocol: "SiLA2", address: "10.40.4.15", mtbfHours: 900, mttrMinutes: 40,
       provenance: {
-        evidence: [cite("network-scan", "device CFG-01", '"model": "Spindle C2"'), cite("floorplan", `${DRAWING}, CFG-01`, 'id="CFG-01"')],
+        evidence: [cite("network-scan", "device CFG-01", '"model": "Agilent Microplate Centrifuge"'), cite("floorplan", `${DRAWING}, CFG-01`, 'id="CFG-01"')],
         confidence: 0.82,
         status: "inferred",
         note: "Absent from the asset register. Exists on the drawing and answers on the network.",
@@ -133,10 +133,10 @@ export const REPLAY_SCRIPT: ReplayStep[] = [
     }),
     thought: "CFG-01 is on the drawing and answers on the network, and SOP-117 needs a spin step, so it is real even though the register omits it. Rotor positions come from the device.",
   },
-  instrument({ id: "RDR-01", name: "Plate Reader 1", model: "Lumen M5", category: "plate-reader", zoneId: BAY, x: 8, y: 6.4, size: [0.9, 0.8, 0.6], capabilities: ["read"], protocol: "SiLA2", address: "10.40.4.16", mtbfHours: 520, mttrMinutes: 60 }),
+  instrument({ id: "RDR-01", name: "Plate Reader 1", model: "BMG LABTECH CLARIOstar Plus", category: "plate-reader", zoneId: BAY, x: 6.2, y: 4.855, size: [0.45, 0.51, 0.4], capabilities: ["read"], protocol: "SiLA2", address: "10.40.4.16", mtbfHours: 520, mttrMinutes: 60 }),
   {
     ...instrument({
-      id: "RDR-02", name: "Plate Reader 2", model: "Lumen M5", category: "plate-reader", zoneId: BAY, x: 10, y: 6.4, size: [0.9, 0.8, 0.6], capabilities: ["read"], state: "offline", protocol: "SiLA2", address: "10.40.4.17", mtbfHours: 520, mttrMinutes: 60,
+      id: "RDR-02", name: "Plate Reader 2", model: "BMG LABTECH CLARIOstar Plus", category: "plate-reader", zoneId: BAY, x: 7.2, y: 4.855, size: [0.45, 0.51, 0.4], capabilities: ["read"], state: "offline", protocol: "SiLA2", address: "10.40.4.17", mtbfHours: 520, mttrMinutes: 60,
       provenance: {
         evidence: [cite("network-scan", "device RDR-02", '"status": "unreachable"'), cite("facilities", "RDR-02", "Unit is back with the vendor for repair"), cite("inventory", "row RDR-02", "RDR-02,Multimode plate reader")],
         confidence: 0.95,
@@ -146,17 +146,17 @@ export const REPLAY_SCRIPT: ReplayStep[] = [
     }),
     thought: "RDR-02 stays in the twin as an offline asset. Its bench and its capacity still exist, and a scenario can bring it back.",
   },
-  instrument({ id: "NEST-01", name: "Transfer Nest", model: "Dock N1", category: "storage", zoneId: BAY, x: 11.9, y: 4, size: [0.5, 0.5, 0.9], capabilities: ["handoff"], capacity: 2, protocol: "manual", address: "none", mtbfHours: 3000, mttrMinutes: 90, provenance: confirmed([cite("inventory", "row NEST-01", "NEST-01,Transfer nest"), cite("floorplan", `${DRAWING}, NEST-01`, 'id="NEST-01"')], 0.93) }),
-  instrument({ id: "IMG-01", name: "High-Content Imager", model: "Ocula HC", category: "imager", zoneId: "z-imaging", x: 17, y: 6.5, size: [1.6, 1.1, 1.3], capabilities: ["image"], protocol: "OPC-UA", address: "10.40.4.18", mtbfHours: 380, mttrMinutes: 75 }),
-  instrument({ id: "TC-01", name: "Thermocycler 1", model: "Helix 384", category: "thermocycler", zoneId: "z-prep", x: 15, y: 1.5, size: [0.6, 0.7, 0.5], capabilities: ["amplify"], protocol: "serial", address: "10.40.4.32:ttyS1", mtbfHours: 1500, mttrMinutes: 60 }),
-  instrument({ id: "TC-02", name: "Thermocycler 2", model: "Helix 384", category: "thermocycler", zoneId: "z-prep", x: 16.8, y: 1.5, size: [0.6, 0.7, 0.5], capabilities: ["amplify"], protocol: "serial", address: "10.40.4.32:ttyS2", mtbfHours: 1500, mttrMinutes: 60 }),
-  instrument({ id: "FRZ-01", name: "-20C Plate Store", model: "Glacier S200", category: "storage", zoneId: "z-cold", x: 22.2, y: 1.8, size: [1.8, 1.2, 2], capabilities: ["cold-store"], capacity: 200, protocol: "OPC-UA", address: "10.40.4.19", mtbfHours: 3000, mttrMinutes: 90 }),
+  instrument({ id: "NEST-01", name: "Transfer Nest", model: "Bay 4 machined transfer nest", category: "storage", zoneId: BAY, x: 11.9, y: 4.0, size: [0.3, 0.3, 0.12], capabilities: ["handoff"], capacity: 2, protocol: "manual", address: "none", mtbfHours: 3000, mttrMinutes: 90, provenance: confirmed([cite("inventory", "row NEST-01", "NEST-01,Transfer nest"), cite("floorplan", `${DRAWING}, NEST-01`, 'id="NEST-01"')], 0.93) }),
+  instrument({ id: "IMG-01", name: "High-Content Imager", model: "Molecular Devices ImageXpress Micro Confocal", category: "imager", zoneId: "z-imaging", x: 17.0, y: 6.5, size: [0.53, 0.86, 0.81], capabilities: ["image"], protocol: "OPC-UA", address: "10.40.4.18", mtbfHours: 380, mttrMinutes: 75 }),
+  instrument({ id: "TC-01", name: "Thermocycler 1", model: "Inheco ODTC 384", category: "thermocycler", zoneId: "z-prep", x: 15.0, y: 1.5, size: [0.157, 0.248, 0.124], capabilities: ["amplify"], protocol: "SiLA2", address: "10.40.4.22", mtbfHours: 1500, mttrMinutes: 60 }),
+  instrument({ id: "TC-02", name: "Thermocycler 2", model: "Inheco ODTC 384", category: "thermocycler", zoneId: "z-prep", x: 16.8, y: 1.5, size: [0.157, 0.248, 0.124], capabilities: ["amplify"], protocol: "SiLA2", address: "10.40.4.23", mtbfHours: 1500, mttrMinutes: 60 }),
+  instrument({ id: "FRZ-01", name: "-20C Plate Store", model: "LiCONiC STX220", category: "storage", zoneId: "z-cold", x: 22.2, y: 1.8, size: [1.0, 0.95, 2.0], capabilities: ["cold-store"], capacity: 220, protocol: "OPC-UA", address: "10.40.4.19", mtbfHours: 3000, mttrMinutes: 90 }),
 
   {
     thought: "Transports next. The rail stops in the bay, so SOP-117's claim that the arm loads the imager cannot be true. Plates must go through NEST-01 and then the AMR.",
     tool: "upsert_transport",
     input: {
-      id: "ARM-01", name: "Rail Arm", kind: "arm", speedMps: 0.6, handoffS: 6, capacity: 1, homeX: 6, homeY: 4,
+      id: "ARM-01", name: "UR5e Rail Arm", kind: "arm", speedMps: 0.6, handoffS: 6, capacity: 1, homeX: 8.8, homeY: 4,
       reach: ["HOT-01", "LH-01", "DSP-01", "SEAL-01", "PEEL-01", "INC-01", "CFG-01", "RDR-01", "RDR-02", "NEST-01"],
       provenance: confirmed([cite("facilities", "Arm", "Reach is limited to the Automation Bay"), cite("floorplan", `${DRAWING}, rail`, 'id="RAIL-ARM-01"')]),
     },
@@ -164,7 +164,7 @@ export const REPLAY_SCRIPT: ReplayStep[] = [
   {
     tool: "upsert_transport",
     input: {
-      id: "AMR-01", name: "Courier AMR", kind: "amr", speedMps: 0.5, handoffS: 18, capacity: 1, minDoorMm: 900, homeX: 11, homeY: 9.2,
+      id: "AMR-01", name: "MiR250 AMR", kind: "amr", speedMps: 0.5, handoffS: 18, capacity: 1, minDoorMm: 900, homeX: 11, homeY: 9.2,
       reach: ["NEST-01", "IMG-01", "FRZ-01", "TC-01", "TC-02"],
       provenance: confirmed([cite("facilities", "Mobile robot", "minimum clear door opening 900 mm"), cite("facilities", "Mobile robot", "Docks are fitted at NEST-01, IMG-01, FRZ-01, TC-01 and TC-02 only")]),
     },
@@ -255,7 +255,7 @@ export const REPLAY_SCRIPT: ReplayStep[] = [
       id: "F-4", severity: "warning", kind: "conflict", title: "INC-01 holds half its registered capacity",
       detail: "The register records 44 plates. The incubator reports one cassette installed and a capacity of 22.",
       entityIds: ["INC-01"], resolution: "Modelled at 22 plates, from the device self-report.",
-      evidence: [cite("network-scan", "device INC-01", '"cassettes_installed": 1'), cite("inventory", "row INC-01", "Cyto 44,Automation Bay,44")],
+      evidence: [cite("network-scan", "device INC-01", '"cassettes_installed": 1'), cite("inventory", "row INC-01", "LiCONiC STX44,Automation Bay,44")],
     },
   },
   {

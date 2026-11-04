@@ -1,16 +1,19 @@
 "use client";
 
-import { OrbitControls } from "@react-three/drei";
-import { Canvas, useFrame } from "@react-three/fiber";
-import { useMemo, useRef } from "react";
+import { Environment, Lightformer, OrbitControls } from "@react-three/drei";
+import { Canvas, useFrame, useThree } from "@react-three/fiber";
+import { useEffect, useMemo, useRef } from "react";
 import * as THREE from "three";
 import type { Segment } from "@/core/sim/types";
 import type { LabTwin } from "@/core/twin/schema";
 import { buildCloud, sceneOffset, toScene, wallSegments, WALL_HEIGHT } from "./geometry";
 import { InstrumentBody } from "./InstrumentBody";
+import { closeViewOf, facingOf } from "./layout";
 import { buildLabels, LabelLayer, LabelProjector } from "./Labels";
 import { SCENE } from "./palette";
-import { Plates, Transports } from "./Playback";
+import { Plates } from "./Playback";
+import { Transports } from "./Robots";
+import { Fittings, Shell as RoomShell } from "./Room";
 import { Routes } from "./Routes";
 
 export type SceneProps = {
@@ -56,33 +59,6 @@ function Walls({ twin }: { twin: LabTwin }) {
   );
 }
 
-function Floors({ twin, selectedId, onSelect }: Pick<SceneProps, "twin" | "selectedId" | "onSelect">) {
-  return twin.zones.map((zone) => {
-    const { x, y, w, h } = zone.bounds;
-    const isSelected = zone.id === selectedId;
-    return (
-      <mesh
-        key={zone.id}
-        position={toScene({ x: x + w / 2, y: y + h / 2 }, 0.001)}
-        rotation={[-Math.PI / 2, 0, 0]}
-        onClick={onSelect ? (event) => { event.stopPropagation(); onSelect(zone.id); } : undefined}
-      >
-        <planeGeometry args={[w - 0.04, h - 0.04]} />
-        <meshBasicMaterial color={isSelected ? SCENE.accent : "#14140f"} transparent opacity={isSelected ? 0.12 : 0.8} />
-      </mesh>
-    );
-  });
-}
-
-function Doors({ twin, minDoorMm }: { twin: LabTwin; minDoorMm: number }) {
-  return twin.doors.map((door) => (
-    <mesh key={door.id} position={toScene(door, 2.1)}>
-      <boxGeometry args={[0.16, 0.05, 0.16]} />
-      <meshBasicMaterial color={door.widthMm < minDoorMm ? SCENE.warn : SCENE.dim} />
-    </mesh>
-  ));
-}
-
 const SWEEP_SPAN_M = 26;
 const SWEEP_SECONDS = 5;
 
@@ -100,22 +76,48 @@ function Sweep() {
   );
 }
 
+const SHADOW_SPAN_M = 16;
+
+function Lights() {
+  return (
+    <>
+      <ambientLight intensity={0.16} />
+      <directionalLight
+        position={[-6, 15, 7]}
+        intensity={1.15}
+        castShadow
+        shadow-mapSize={[2048, 2048]}
+        shadow-bias={-0.0004}
+        shadow-camera-left={-SHADOW_SPAN_M}
+        shadow-camera-right={SHADOW_SPAN_M}
+        shadow-camera-top={SHADOW_SPAN_M}
+        shadow-camera-bottom={-SHADOW_SPAN_M}
+      />
+      <Environment resolution={128} frames={1}>
+        <Lightformer intensity={0.85} position={[0, 8, 0]} rotation={[Math.PI / 2, 0, 0]} scale={[24, 12, 1]} />
+        <Lightformer intensity={0.55} position={[-12, 3, 6]} rotation={[0, Math.PI / 2, 0]} scale={[14, 5, 1]} />
+        <Lightformer intensity={0.4} color="#bcd4ff" position={[12, 3, -6]} rotation={[0, -Math.PI / 2, 0]} scale={[14, 5, 1]} />
+      </Environment>
+    </>
+  );
+}
+
 function Contents(props: SceneProps) {
   const { twin, segments, selectedId, touchedId, showCloud, showRoutes, isScanning, onSelect } = props;
   const minDoorMm = Math.max(0, ...twin.transports.map((item) => item.minDoorMm ?? 0));
   return (
     <>
-      <ambientLight intensity={0.7} />
-      <directionalLight position={[-8, 14, 6]} intensity={1.5} />
+      <Lights />
       <gridHelper args={[60, 60, "#22221d", "#171713"]} position={[0, -0.01, 0]} />
-      <Floors twin={twin} selectedId={selectedId} onSelect={onSelect} />
+      <RoomShell twin={twin} selectedId={selectedId} minDoorMm={minDoorMm} onSelect={onSelect} />
       <Walls twin={twin} />
-      <Doors twin={twin} minDoorMm={minDoorMm} />
+      <Fittings twin={twin} />
       {showCloud ? <Cloud twin={twin} /> : null}
       {twin.instruments.map((item) => (
         <InstrumentBody
           key={item.id}
           item={item}
+          facing={facingOf(twin, item)}
           segments={segments}
           isSelected={item.id === selectedId}
           isTouched={item.id === touchedId}
@@ -130,8 +132,51 @@ function Contents(props: SceneProps) {
   );
 }
 
+const FLY_EASE = 0.09;
+const FLY_DONE_M = 0.01;
+
+
+/** Sits left of centre: the automation bay is what people come to see. */
+const OVERVIEW_TARGET: [number, number, number] = [-4.2, 0.4, -3];
+
+type Controls = { target: THREE.Vector3; update: () => void };
+type Flight = { camera: THREE.Vector3; target: THREE.Vector3 };
+
+/** Flies to the selected instrument, then lets go, so orbiting and zooming still belong to the user. */
+function CameraRig({ twin, selectedId, overview }: { twin: LabTwin; selectedId?: string | null; overview: [number, number, number] }) {
+  const camera = useThree((state) => state.camera);
+  const controls = useThree((state) => state.controls) as unknown as Controls | null;
+  const flight = useRef<Flight | null>(null);
+  const isClose = useRef(false);
+
+  useEffect(() => {
+    const item = twin.instruments.find(({ id }) => id === selectedId);
+    if (item === undefined) {
+      if (isClose.current) flight.current = { camera: new THREE.Vector3(...overview), target: new THREE.Vector3(...OVERVIEW_TARGET) };
+      isClose.current = false;
+      return;
+    }
+    const shift = sceneOffset(twin);
+    const { centre, offset } = closeViewOf(twin, item);
+    const [x, y, z] = toScene(item, centre);
+    const target = new THREE.Vector3(x + shift[0], y, z + shift[2]);
+    flight.current = { camera: target.clone().add(new THREE.Vector3(...offset)), target };
+    isClose.current = true;
+  }, [twin, selectedId, overview]);
+
+  useFrame(() => {
+    const goal = flight.current;
+    if (goal === null || controls === null) return;
+    camera.position.lerp(goal.camera, FLY_EASE);
+    controls.target.lerp(goal.target, FLY_EASE);
+    controls.update();
+    if (camera.position.distanceTo(goal.camera) < FLY_DONE_M) flight.current = null;
+  });
+  return null;
+}
+
 export default function LabScene(props: SceneProps) {
-  const { twin, selectedId, showLabels = false, autoRotate = false, interactive = true, onSelect, cameraPosition = [-11, 18, 21] } = props;
+  const { twin, selectedId, showLabels = false, autoRotate = false, interactive = true, onSelect, cameraPosition = [-11.5, 13, 9.5] } = props;
   const labelRoot = useRef<HTMLDivElement>(null);
   const labels = useMemo(() => (showLabels ? buildLabels(twin, selectedId ?? null) : []), [showLabels, twin, selectedId]);
   return (
@@ -139,6 +184,7 @@ export default function LabScene(props: SceneProps) {
       <Canvas
         camera={{ position: cameraPosition, fov: 38, near: 0.1, far: 200 }}
         dpr={[1, 2]}
+        shadows="percentage"
         gl={{ antialias: true, alpha: true }}
         onPointerMissed={() => onSelect?.(null)}
         aria-label="3D view of the lab digital twin"
@@ -146,16 +192,18 @@ export default function LabScene(props: SceneProps) {
         <fog attach="fog" args={[SCENE.bg, 38, 80]} />
         <group position={sceneOffset(twin)}><Contents {...props} /></group>
         <LabelProjector root={labelRoot} />
+        {interactive ? <CameraRig twin={twin} selectedId={selectedId} overview={cameraPosition} /> : null}
         <OrbitControls
+          makeDefault
           enabled={interactive}
           enablePan={interactive}
           enableZoom={interactive}
           autoRotate={autoRotate}
           autoRotateSpeed={0.5}
           maxPolarAngle={Math.PI / 2.1}
-          minDistance={6}
+          minDistance={1.2}
           maxDistance={60}
-          target={[0, 0.4, 0]}
+          target={OVERVIEW_TARGET}
         />
       </Canvas>
       <LabelLayer labels={labels} root={labelRoot} />

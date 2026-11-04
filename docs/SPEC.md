@@ -11,7 +11,7 @@ plans, inventories, network scans, SOPs, run logs — and compiles it into a typ
 2. **The model decides, the code computes.** Claude reads and reconciles. Arithmetic (duration fitting,
    validation, routing, simulation) is deterministic code exposed as tools, never model output.
 3. **No fake numbers.** Every figure in the UI, including the landing page, is computed from the example
-   twin at build or run time. The example lab is fictional and labelled so.
+   twin at build or run time. The example lab is fictional and labelled so. Its instruments are real products, and their faults and timings are invented.
 4. **Replay is not Live.** The example run is a scripted replay: the decisions are authored, but each one
    runs through the real tool handlers, validator and simulator. The UI labels this at all times.
 5. **Evidence is untrusted input.** Agent tools can only mutate the twin. No network, no filesystem.

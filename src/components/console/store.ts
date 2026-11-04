@@ -79,7 +79,7 @@ export const useConsole = create<ConsoleState>((set, get) => ({
   speed: 1,
   selectedId: null,
   focus: null,
-  layers: { cloud: true, routes: true, labels: true },
+  layers: { cloud: false, routes: true, labels: true },
   sim: initialSim(),
 
   setView: (view) => set({ view }),

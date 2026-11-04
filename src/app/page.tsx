@@ -69,7 +69,7 @@ export default function Home() {
         <div className="section-head">
           <p className="label">Example run</p>
           <h2>What the agent found at Bay 4</h2>
-          <p>Aldermoor Institute is fictional. Its records contradict each other on purpose, the way real ones do.</p>
+          <p>Aldermoor Institute is fictional, though its instruments are real products. Their faults and timings here are invented. The records contradict each other on purpose, the way real ones do.</p>
         </div>
         <ol className="rows">
           {figures.findings.map((finding, index) => (

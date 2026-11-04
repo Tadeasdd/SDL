@@ -11,12 +11,13 @@ D-3 (Automation Bay to Imaging Room) measured clear opening 850 mm. Drawing is c
 All other doors are 1000 mm or wider, except D-7 at 900 mm.
 
 ## Mobile robot
-Courier M1 datasheet: minimum clear door opening 900 mm. Site speed limit in shared spaces 0.5 m/s.
+MiR250 site risk assessment: minimum clear door opening 900 mm with protective fields active. The muted-field setup is not approved here. Site speed limit in shared spaces 0.5 m/s.
 Dock hand-off cycle 18 s. Docks are fitted at NEST-01, IMG-01, FRZ-01, TC-01 and TC-02 only.
 
 ## Arm
-Strider R6: effective transfer speed 0.6 m/s along the rail. Pick-and-place cycle 6 s.
+UR5e on its linear track: effective transfer speed 0.6 m/s along the rail. Pick-and-place cycle 6 s.
 Rail spans x = 1.5 m to x = 11 m at y = 4 m. Reach is limited to the Automation Bay.
+Benches run either side of the rail so every station sits inside the arm's 850 mm reach.
 
 ## Reliability, from CMMS history
 | Class | MTBF (h) | MTTR (min) |

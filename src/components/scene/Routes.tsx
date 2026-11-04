@@ -4,7 +4,8 @@ import { Line } from "@react-three/drei";
 import { useMemo } from "react";
 import { planRoute, type Point } from "@/core/twin/routing";
 import type { LabTwin } from "@/core/twin/schema";
-import { railOf, toScene } from "./geometry";
+import { toScene } from "./geometry";
+import { BENCH_HEIGHT, topOf } from "./layout";
 import { SCENE } from "./palette";
 
 const ROUTE_HEIGHT = 0.03;
@@ -29,16 +30,12 @@ export function Routes({ twin, selectedId }: { twin: LabTwin; selectedId: string
   const reach = selected ? twin.instruments.filter((item) => selected.reach.includes(item.id)) : [];
   return (
     <>
-      {arms.map((arm) => {
-        const { from, to } = railOf(twin, arm);
-        return <Line key={arm.id} points={[toScene(from, 0.9), toScene(to, 0.9)]} color={SCENE.ink} lineWidth={1.4} />;
-      })}
       {paths.map(({ key, points }) => (
         <Line key={key} points={points.map((point) => toScene(point, ROUTE_HEIGHT))} color={SCENE.accent} lineWidth={1} dashed dashSize={0.18} gapSize={0.14} transparent opacity={0.55} />
       ))}
       {selected
         ? reach.map((item) => (
-            <Line key={item.id} points={[toScene({ x: item.x, y: selected.homeY }, 0.9), toScene(item, item.size.h)]} color={SCENE.accent} lineWidth={1} transparent opacity={0.7} />
+            <Line key={item.id} points={[toScene({ x: item.x, y: selected.homeY }, BENCH_HEIGHT), toScene(item, topOf(item))]} color={SCENE.accent} lineWidth={1} transparent opacity={0.7} />
           ))
         : null}
     </>

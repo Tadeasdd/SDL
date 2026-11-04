@@ -45,5 +45,5 @@ export function HeroScene({ twin }: { twin: LabTwin }) {
     return () => cancelAnimationFrame(frame);
   }, [result]);
 
-  return <LabScene twin={twin} segments={result.segments} showCloud showRoutes autoRotate={canRotate} interactive={false} cameraPosition={[-10, 13, 17]} />;
+  return <LabScene twin={twin} segments={result.segments} showRoutes autoRotate={canRotate} interactive={false} cameraPosition={[-10, 13, 17]} />;
 }

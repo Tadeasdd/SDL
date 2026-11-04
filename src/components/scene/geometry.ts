@@ -1,6 +1,7 @@
 import { createRng } from "@/core/sim/random";
 import type { Point } from "@/core/twin/routing";
 import type { Instrument, LabTwin, Transport, Zone } from "@/core/twin/schema";
+import { mountOf } from "./layout";
 
 export const WALL_HEIGHT = 2.6;
 export const SITE = { x: 12, y: 7 };
@@ -90,7 +91,7 @@ const sampleKit = (item: Instrument, out: Cloud): void => {
       : face < w * d + 2 * w * h ? [u * w, v * h, -d / 2]
       : face < w * d + 2 * w * h + d * h ? [w / 2, v * h, u * d]
       : [-w / 2, v * h, u * d];
-    out.positions.push(item.x + px - SITE.x, py, item.y + pz - SITE.y);
+    out.positions.push(item.x + px - SITE.x, py + mountOf(item), item.y + pz - SITE.y);
     out.shades.push(0.6 + 0.4 * (py / h));
   }
 };

@@ -5,6 +5,7 @@ import { useMemo, type RefObject } from "react";
 import { Vector3 } from "three";
 import type { LabTwin } from "@/core/twin/schema";
 import { sceneOffset, toScene, WALL_HEIGHT } from "./geometry";
+import { topOf } from "./layout";
 
 const LABEL_LIFT_M = 0.24;
 
@@ -24,7 +25,7 @@ export const buildLabels = (twin: LabTwin, selectedId: string | null): Label[] =
   ...twin.instruments.map((item) => ({
     id: item.id,
     text: item.id,
-    at: shift(toScene(item, item.size.h + LABEL_LIFT_M), offset),
+    at: shift(toScene(item, topOf(item) + LABEL_LIFT_M), offset),
     className: `scene-tag${item.id === selectedId ? " is-selected" : ""}${item.state === "offline" ? " is-offline" : ""}`,
   })),
   ];

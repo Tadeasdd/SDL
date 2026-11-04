@@ -1,16 +1,16 @@
 asset_tag,description,model,location,capacity_plates,commissioned,status
-HOT-01,Plate hotel,HX-40 Hotel,Automation Bay,40,2023-03-14,In service
-LH-01,96-channel liquid handler,Tessel LH-96,Automation Bay,1,2023-03-14,In service
-DSP-01,Reagent dispenser,Quill D8,Automation Bay,1,2023-03-20,In service
-SEAL-01,Plate sealer,Thermaseal T2,Automation Bay,1,2023-03-20,In service
-PEEL-01,Plate peeler,Thermaseal P2,Automation Bay,1,2023-03-20,In service
-INC-01,Automated CO2 incubator,Cyto 44,Automation Bay,44,2023-04-02,In service
-RDR-01,Multimode plate reader,Lumen M5,Automation Bay,1,2023-04-11,In service
-RDR-02,Multimode plate reader,Lumen M5,Automation Bay,1,2024-09-30,In service
-NEST-01,Transfer nest,Dock N1,Automation Bay,2,2024-01-15,In service
-IMG-01,High-content imager,Ocula HC,Imaging Room,1,2024-02-08,In service
-TC-01,Thermocycler,Helix 384,Prep Lab,1,2022-11-01,In service
-TC-02,Thermocycler,Helix 384,Prep Lab,1,2022-11-01,In service
-FRZ-01,-20C plate store,Glacier S200,Cold Room,200,2022-06-19,In service
-ARM-01,Rail-mounted 6-axis arm,Strider R6 on 9.5 m rail,Automation Bay,1,2023-03-14,In service
-AMR-01,Autonomous mobile robot,Courier M1,Service Corridor,1,2024-01-15,In service
+HOT-01,Plate hotel,LiCONiC LPX44,Automation Bay,44,2023-03-14,In service
+LH-01,96-channel liquid handler,Hamilton Microlab STAR,Automation Bay,1,2023-03-14,In service
+DSP-01,Reagent dispenser,Thermo Scientific Multidrop Combi,Automation Bay,1,2023-03-20,In service
+SEAL-01,Plate sealer,Azenta Automated Roll Heat Sealer,Automation Bay,1,2023-03-20,In service
+PEEL-01,Plate peeler,Azenta Automated Plate Seal Remover,Automation Bay,1,2023-03-20,In service
+INC-01,Automated CO2 incubator,LiCONiC STX44,Automation Bay,44,2023-04-02,In service
+RDR-01,Multimode plate reader,BMG LABTECH CLARIOstar Plus,Automation Bay,1,2023-04-11,In service
+RDR-02,Multimode plate reader,BMG LABTECH CLARIOstar Plus,Automation Bay,1,2024-09-30,In service
+NEST-01,Transfer nest,Bay 4 machined transfer nest,Automation Bay,2,2024-01-15,In service
+IMG-01,High-content imager,Molecular Devices ImageXpress Micro Confocal,Imaging Room,1,2024-02-08,In service
+TC-01,On-deck thermal cycler,Inheco ODTC 384,Prep Lab,1,2022-11-01,In service
+TC-02,On-deck thermal cycler,Inheco ODTC 384,Prep Lab,1,2022-11-01,In service
+FRZ-01,-20C plate store,LiCONiC STX220,Cold Room,220,2022-06-19,In service
+ARM-01,Rail-mounted 6-axis arm,Universal Robots UR5e on 9.5 m linear track,Automation Bay,1,2023-03-14,In service
+AMR-01,Autonomous mobile robot,MiR250,Service Corridor,1,2024-01-15,In service
