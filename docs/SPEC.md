@@ -60,3 +60,17 @@ evidence ──> agent loop (Claude | scripted replay) ──> tool handlers ─
 | Live endpoint abused if deployed        | Per-IP rate limit, payload caps, turn cap, disabled without a key              |
 | Simulation mistaken for a forecast      | Reported as Monte Carlo ranges with stated assumptions                          |
 | WebGL unavailable                       | Plan view and entity tree expose the same data without 3D                      |
+
+## Planning layer
+
+All of this lives in `src/core/sim` and `src/core/twin` as pure, tested functions. The console only displays it.
+
+- `engine.ts`: `SimConfig.schedule` adds staffed hours, overnight behaviour, a dispatch rule and maintenance windows. Without it a run is bit-for-bit what it was.
+  Plates are loaded in staffed hours only. Plates already held in the hotel may start unattended unless the lab stops.
+- `economics.ts`: cost of each patch and payback. Prices are invented planning figures.
+- `optimise.ts`: beam search over combinations, as a generator so the browser stays responsive. A winner must hold up on 32 runs, and near misses are rechecked, so a cheap plan is not lost to a lucky dear one.
+- `assay.ts`: synthetic 384-well plates. The peel-to-read wait comes from the run. SOP-117's 45-minute limit is the threshold. Signal loss per minute is an assumption.
+- `validation.ts`: fits on the earlier two thirds of each run family and scores the later third. Scoring on the fitted data would be circular. Queueing under load is not tested, because the log's plates did not compete.
+- `explain.ts`: answers from run data with no model. `core/agent/ask.ts` is the optional Claude path, which receives compact facts only.
+- `layout-edit.ts`: moves, reach re-derivation and physical checks. `ARM_REACH_M` is the UR5e's published 850 mm plus a gripper.
+- `share.ts`: a link carries config and change ids, not results, so seeds reproduce the run. It only works for the example lab.

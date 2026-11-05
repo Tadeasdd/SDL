@@ -37,6 +37,7 @@ const summarise = (plateId: number, segments: readonly Segment[]): PlateRecord =
 export const plateRecords = (run: SimResult): PlateRecord[] => {
   const byPlate = new Map<number, Segment[]>();
   for (const segment of run.segments) {
+    if (segment.plateId < 0) continue;
     const list = byPlate.get(segment.plateId);
     if (list === undefined) byPlate.set(segment.plateId, [segment]);
     else list.push(segment);

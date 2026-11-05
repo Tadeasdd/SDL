@@ -24,7 +24,7 @@ export function Plates({ twin, segments }: { twin: LabTwin; segments: readonly S
   const plates = useMemo(() => {
     const byPlate = new Map<number, Segment[]>();
     for (const segment of segments) {
-      if (segment.kind === "wait") continue;
+      if (segment.kind === "wait" || segment.kind === "down") continue;
       byPlate.set(segment.plateId, [...(byPlate.get(segment.plateId) ?? []), segment]);
     }
     return [...byPlate.values()];

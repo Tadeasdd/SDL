@@ -2,18 +2,35 @@ import type { Point } from "../twin/routing";
 
 export type Demand = { workflowId: string; plates: number; intervalS: number };
 
+/** Which queued plate a free resource takes next. */
+export type DispatchRule = "fifo" | "shortest-step" | "oldest-plate";
+
+export type MaintenanceWindow = { resourceId: string; startS: number; durationS: number };
+
+export type Schedule = {
+  /** Staffed hours in each 24 h day, counted from t = 0. Null means staffed around the clock. */
+  attendedHours: number | null;
+  /** True when automation also stops outside staffed hours. False means it runs on overnight unattended. */
+  stopsUnattended: boolean;
+  dispatch: DispatchRule;
+  maintenance: MaintenanceWindow[];
+};
+
 export type SimConfig = {
   demands: Demand[];
   seed: number;
   /** Plates allowed on the floor at once. Further releases wait. */
   maxWip: number;
   failures: boolean;
+  /** Omitted means staffed around the clock, first come first served, no planned downtime. */
+  schedule?: Schedule;
 };
 
 export type Segment = {
   plateId: number;
   workflowId: string;
-  kind: "process" | "move" | "wait";
+  /** "down" is planned maintenance, which holds a resource and carries no plate (plateId is -1). */
+  kind: "process" | "move" | "wait" | "down";
   resourceId: string;
   stepId: string;
   start: number;

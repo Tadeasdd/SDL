@@ -22,7 +22,27 @@
 - Restoring the reader gives about **+22%** throughput and moves the bottleneck to the imager.
 - Door D-3 really is too narrow for the robot, yet widening it is **within noise**. A flagged problem is not always an expensive one.
 
+- Once the reader is back, widening D-3 becomes a real **+4.6%**, because the imager is then the limit. Only testing changes in combination shows that.
+- In the simulated assay, the reader queue leaves about 40% of plates passing Z′ 0.5. The repair takes that to 100%.
+
 ![Simulate view](docs/img/simulate.jpg)
+
+## Planning a change
+
+| Where | What it does |
+| --- | --- |
+| Simulate, left panel | Staffing patterns, queue rules and maintenance windows |
+| Simulate, Charts and Tables | Live charts during playback, per-plate results, CSV export |
+| Simulate, Assay | Synthetic 384-well plates and dose-response curves, driven by each plate's real wait in the run |
+| Simulate, Cost | One-off and yearly cost and payback, with editable assumptions |
+| Simulate, Ask | Questions answered from the run's data. Uses Claude if a key is set, otherwise a rule-based engine with no model |
+| Decide | Cheapest-plan search, schedule comparison, saved runs side by side, held-out validation |
+| Twin, Edit layout | Drag instruments in 3D with reach and collision checks and a live re-simulation |
+| Report | Save as PDF, or copy a link that reproduces the scenario |
+
+Prices are round planning estimates, not quotes. Assay readouts are generated, and how much signal is lost to waiting is an assumption. The example's run log comes from a script, so its validation score shows the method working rather than a real lab being predicted.
+
+![Decide view](docs/img/decide.jpg)
 
 | Map | Twin | Report |
 | --- | --- | --- |

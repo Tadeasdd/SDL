@@ -28,8 +28,14 @@ test("capture", async ({ page }) => {
   await page.waitForTimeout(6000);
   await page.screenshot({ path: "docs/img/simulate.jpg", quality: 82, type: "jpeg" });
 
+  await page.goto("/console#decide");
+  await page.reload();
+  await page.getByRole("button", { name: "Find the cheapest plan" }).click();
+  await expect(page.getByTestId("optimiser-result")).toBeVisible({ timeout: 30_000 });
+  await page.screenshot({ path: "docs/img/decide.jpg", quality: 82, type: "jpeg" });
+
   await page.goto("/console#report");
   await page.reload();
-  await expect(page.locator(".rank tbody tr").first()).toBeVisible({ timeout: 30_000 });
+  await expect(page.getByTestId("rank-table").locator("tbody tr").first()).toBeVisible({ timeout: 30_000 });
   await page.screenshot({ path: "docs/img/report.jpg", quality: 82, type: "jpeg" });
 });

@@ -2,11 +2,15 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { MONTE_CARLO_RUNS } from "@/core/example-config";
-import { candidateInterventions, type Comparison, type Scenario } from "@/core/sim/scenarios";
-import type { MonteCarloResult, Range } from "@/core/sim/types";
+import { DEFAULT_SCHEDULE, RULES, SHIFTS, shiftOf } from "@/core/sim/schedules";
+import { applyPatches, candidateInterventions, type Comparison, type Scenario } from "@/core/sim/scenarios";
+import type { DispatchRule, MonteCarloResult, Range, Schedule } from "@/core/sim/types";
 import type { LabTwin } from "@/core/twin/schema";
+import { AskPanel } from "./AskPanel";
+import { AssayPanel } from "./AssayPanel";
 import { ResultCharts } from "./charts/ResultCharts";
 import { ResultTables } from "./charts/ResultTables";
+import { CostPanel } from "./CostPanel";
 import { hours, minutes, signed } from "./format";
 import { usePlayback } from "./playback";
 import { useConsole } from "./store";
@@ -36,6 +40,56 @@ function Slider({ label, value, min, max, step, unit, onChange }: {
       <output className="mono">{value} {unit}</output>
       <input type="range" min={min} max={max} step={step} value={value} onChange={(event) => onChange(Number(event.target.value))} />
     </label>
+  );
+}
+
+const HOUR_S = 3600;
+
+function ScheduleControls({ twin }: { twin: LabTwin }) {
+  const config = useConsole((state) => state.sim.config);
+  const setConfig = useConsole((state) => state.setConfig);
+  const schedule = config.schedule ?? DEFAULT_SCHEDULE;
+  const update = (change: Partial<Schedule>) => setConfig({ ...config, schedule: { ...schedule, ...change } });
+  const window = schedule.maintenance[0];
+  const setWindow = (resourceId: string, startH: number, lengthH: number) =>
+    update({ maintenance: resourceId === "" ? [] : [{ resourceId, startS: startH * HOUR_S, durationS: Math.max(0.5, lengthH) * HOUR_S }] });
+  const startH = (window?.startS ?? 4 * HOUR_S) / HOUR_S;
+  const lengthH = (window?.durationS ?? 2 * HOUR_S) / HOUR_S;
+  return (
+    <>
+      <h3 className="group-head label">Schedule</h3>
+      <label className="pick">
+        <span>Staffing</span>
+        <select
+          value={shiftOf(schedule).id}
+          onChange={(event) => {
+            const shift = SHIFTS.find((item) => item.id === event.target.value);
+            if (shift) update({ attendedHours: shift.attendedHours, stopsUnattended: shift.stopsUnattended });
+          }}
+        >
+          {SHIFTS.map((item) => <option key={item.id} value={item.id}>{item.label}</option>)}
+        </select>
+      </label>
+      <label className="pick">
+        <span>Queue rule</span>
+        <select value={schedule.dispatch} onChange={(event) => update({ dispatch: event.target.value as DispatchRule })}>
+          {RULES.map((item) => <option key={item.id} value={item.id}>{item.label}</option>)}
+        </select>
+      </label>
+      <label className="pick">
+        <span>Planned maintenance</span>
+        <select value={window?.resourceId ?? ""} onChange={(event) => setWindow(event.target.value, startH, lengthH)}>
+          <option value="">None</option>
+          {twin.instruments.filter((item) => item.state !== "offline").map((item) => <option key={item.id} value={item.id}>{item.id}</option>)}
+        </select>
+      </label>
+      {window ? (
+        <div className="fields fields-row">
+          <label className="field"><span>Starts at hour</span><input type="number" min={0} step={1} value={startH} onChange={(event) => setWindow(window.resourceId, Number(event.target.value), lengthH)} /></label>
+          <label className="field"><span>Lasts (h)</span><input type="number" min={0.5} step={0.5} value={lengthH} onChange={(event) => setWindow(window.resourceId, startH, Number(event.target.value))} /></label>
+        </div>
+      ) : null}
+    </>
   );
 }
 
@@ -71,6 +125,7 @@ function Setup({ twin }: { twin: LabTwin }) {
           <input type="checkbox" checked={sim.config.failures} onChange={() => setConfig({ ...sim.config, failures: !sim.config.failures })} />
           <span>Instrument failures from MTBF</span>
         </label>
+        <ScheduleControls twin={twin} />
         <h3 className="group-head label">Changes</h3>
         <ul>{changes.map(option)}</ul>
         <h3 className="group-head label">Stress tests</h3>
@@ -134,10 +189,34 @@ function Utilisation({ result }: { result: MonteCarloResult }) {
 const TABS = [
   { id: "charts", label: "Charts" },
   { id: "tables", label: "Tables" },
+  { id: "assay", label: "Assay" },
+  { id: "cost", label: "Cost" },
+  { id: "ask", label: "Ask" },
   { id: "drivers", label: "Drivers" },
 ] as const;
 
 type Tab = (typeof TABS)[number]["id"];
+
+function SaveRun() {
+  const saveRun = useConsole((state) => state.saveRun);
+  const count = useConsole((state) => state.saved.length);
+  const [name, setName] = useState("");
+  const [isSaved, setIsSaved] = useState(false);
+  return (
+    <form
+      className="save-run"
+      onSubmit={(event) => {
+        event.preventDefault();
+        saveRun(name.trim() || `Run ${count + 1}`);
+        setName("");
+        setIsSaved(true);
+      }}
+    >
+      <input aria-label="Name this run" value={name} maxLength={60} placeholder={isSaved ? "Saved. Compare in Decide" : "Name this run"} onChange={(event) => setName(event.target.value)} />
+      <button className="btn btn-small">Save run</button>
+    </form>
+  );
+}
 
 function Drivers({ current }: { current: MonteCarloResult }) {
   return (
@@ -158,6 +237,7 @@ function Drivers({ current }: { current: MonteCarloResult }) {
 function Results({ twin }: { twin: LabTwin }) {
   const sim = useConsole((state) => state.sim);
   const [tab, setTab] = useState<Tab>("charts");
+  const shown = useMemo(() => (sim.comparison ? applyPatches(twin, sim.scenarios.flatMap((item) => item.patches)) : twin), [twin, sim.comparison, sim.scenarios]);
   const current = sim.comparison?.scenario ?? sim.baseline;
   const baseline = sim.comparison?.baseline;
   const hasUnrun = sim.scenarios.length > 0 && sim.comparison === null;
@@ -182,7 +262,11 @@ function Results({ twin }: { twin: LabTwin }) {
             </div>
             {tab === "charts" ? <ResultCharts twin={twin} current={current} baseline={baseline} /> : null}
             {tab === "tables" ? <ResultTables twin={twin} result={current} /> : null}
+            {tab === "assay" ? <AssayPanel twin={shown} run={current.representative} seed={sim.config.seed} /> : null}
+            {tab === "cost" ? <CostPanel /> : null}
+            {tab === "ask" ? <AskPanel twin={twin} current={current} /> : null}
             {tab === "drivers" ? <Drivers current={current} /> : null}
+            <SaveRun />
           </>
         )}
       </div>

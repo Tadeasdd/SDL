@@ -3,19 +3,42 @@ import { createRouter, type Leg, type Point } from "../twin/routing";
 import type { Instrument, LabTwin, Step, Transport, Workflow } from "../twin/schema";
 import { EventQueue } from "./queue";
 import { createRng, sampleExponential, sampleNormal, type Rng } from "./random";
-import type { ResourceStat, Segment, SimConfig, SimResult } from "./types";
+import type { DispatchRule, ResourceStat, Schedule, Segment, SimConfig, SimResult } from "./types";
 
 const MIN_DURATION_SHARE = 0.3;
 const DEGRADED_SLOWDOWN = 1.25;
 const SECONDS_PER_HOUR = 3600;
 const PLATE_STREAM_STRIDE = 100_003;
 
+const SECONDS_PER_DAY = 86_400;
+
+const OPEN_ALL_DAY: Schedule = { attendedHours: null, stopsUnattended: false, dispatch: "fifo", maintenance: [] };
+
+/** When the lab is next staffed, at or after `time`. */
+export const nextAttended = (schedule: Schedule, time: number): number => {
+  if (schedule.attendedHours === null) return time;
+  const day = Math.floor(time / SECONDS_PER_DAY) * SECONDS_PER_DAY;
+  return time - day < schedule.attendedHours * SECONDS_PER_HOUR ? time : day + SECONDS_PER_DAY;
+};
+
+type Waiter = { run: () => void; expectedS: number; releasedAt: number; isMaintenance: boolean };
+
+/** Maintenance always goes first. Otherwise the rule decides, and ties keep arrival order. */
+const nextIndex = (queue: readonly Waiter[], rule: DispatchRule): number => {
+  const score = (item: Waiter): number => {
+    if (item.isMaintenance) return Number.NEGATIVE_INFINITY;
+    if (rule === "shortest-step") return item.expectedS;
+    return rule === "oldest-plate" ? item.releasedAt : 0;
+  };
+  return queue.reduce((best, item, index) => (score(item) < score(queue[best] as Waiter) ? index : best), 0);
+};
+
 type Resource = {
   id: string;
   kind: ResourceStat["kind"];
   capacity: number;
   busy: number;
-  queue: (() => void)[];
+  queue: Waiter[];
   busyS: number;
   waitS: number;
   jobs: number;
@@ -71,6 +94,8 @@ export const simulate = (twin: LabTwin, config: SimConfig): SimResult => {
   let totalFailures = 0;
   const held: Plate[] = [];
 
+  const plan = config.schedule ?? OPEN_ALL_DAY;
+
   const resource = (id: string): Resource => resources.get(id) as Resource;
 
   const acquire = (id: string, plate: Plate, step: Step, then: () => void): void => {
@@ -81,29 +106,66 @@ export const simulate = (twin: LabTwin, config: SimConfig): SimResult => {
       return;
     }
     const queuedAt = now;
-    target.queue.push(() => {
-      target.waitS += now - queuedAt;
-      segments.push({
-        plateId: plate.id,
-        workflowId: plate.workflow.id,
-        kind: "wait",
-        resourceId: id,
-        stepId: step.id,
-        start: queuedAt,
-        end: now,
-      });
-      then();
+    target.queue.push({
+      expectedS: step.duration.meanS,
+      releasedAt: plate.releasedAt,
+      isMaintenance: false,
+      run: () => {
+        target.waitS += now - queuedAt;
+        segments.push({
+          plateId: plate.id,
+          workflowId: plate.workflow.id,
+          kind: "wait",
+          resourceId: id,
+          stepId: step.id,
+          start: queuedAt,
+          end: now,
+        });
+        then();
+      },
     });
   };
 
   const release = (id: string): void => {
     const target = resource(id);
-    const next = target.queue.shift();
-    if (next === undefined) {
+    if (target.queue.length === 0) {
       target.busy -= 1;
       return;
     }
-    next();
+    const [next] = target.queue.splice(nextIndex(target.queue, plan.dispatch), 1);
+    next?.run();
+  };
+
+  /** Holds one unit of a resource for the window. A job already running finishes first. */
+  const holdForMaintenance = (id: string, durationS: number): void => {
+    const target = resource(id);
+    const hold = (): void => {
+      const start = now;
+      events.push(now + durationS, () => {
+        segments.push({ plateId: -1, workflowId: "", kind: "down", resourceId: id, stepId: "maintenance", start, end: now });
+        release(id);
+      });
+    };
+    if (target.busy < target.capacity) {
+      target.busy += 1;
+      hold();
+    } else {
+      target.queue.push({ run: hold, expectedS: 0, releasedAt: 0, isMaintenance: true });
+    }
+  };
+
+  /** Runs `then` now if the lab is working, otherwise at the next staffed moment, recording the wait. */
+  const whenOpen = (plate: Plate, resourceId: string, stepId: string, then: () => void): void => {
+    const opens = nextAttended(plan, now);
+    if (opens === now) {
+      then();
+      return;
+    }
+    const start = now;
+    events.push(opens, () => {
+      segments.push({ plateId: plate.id, workflowId: plate.workflow.id, kind: "wait", resourceId, stepId, start, end: now });
+      then();
+    });
   };
 
   const feasibility = new Map(twin.workflows.map((item) => [item.id, feasibleInstruments(twin, item, route)]));
@@ -139,8 +201,8 @@ export const simulate = (twin: LabTwin, config: SimConfig): SimResult => {
       then();
       return;
     }
-    acquire(leg.transportId, plate, step, () => {
-      const transport = transports.get(leg.transportId) as Transport;
+    const transport = transports.get(leg.transportId) as Transport;
+    const begin = (): void => acquire(leg.transportId, plate, step, () => {
       const duration = legDuration(leg, transport);
       const start = now;
       const state = resource(leg.transportId);
@@ -162,6 +224,9 @@ export const simulate = (twin: LabTwin, config: SimConfig): SimResult => {
         runLegs(plate, step, rest, then);
       });
     });
+    // People only walk plates during staffed hours. Robots keep going unless the whole lab stops.
+    if (transport.kind === "human" || plan.stopsUnattended) whenOpen(plate, leg.transportId, step.id, begin);
+    else begin();
   };
 
   const sampleDuration = ({ rng }: Plate, step: Step, instrument: Instrument): { seconds: number; failed: boolean } => {
@@ -210,6 +275,10 @@ export const simulate = (twin: LabTwin, config: SimConfig): SimResult => {
       finish(plate);
       return;
     }
+    if (plan.stopsUnattended && nextAttended(plan, now) !== now) {
+      whenOpen(plate, "", step.id, () => runStep(plate, index));
+      return;
+    }
     const instrument = chooseInstrument(plate, index);
     const legs = plate.at === null ? [] : (route(plate.at, instrument.id)?.legs ?? []);
     // Instruments have no input buffer, so the destination is reserved before the final leg. Earlier legs
@@ -219,7 +288,9 @@ export const simulate = (twin: LabTwin, config: SimConfig): SimResult => {
       acquire(instrument.id, plate, step, () => {
         runLegs(plate, step, legs.slice(-1), () => {
           plate.at = instrument.id;
-          process(plate, index, step, instrument);
+          // A plate handed over from a queue can arrive overnight. In a stopped lab it sits until morning.
+          if (plan.stopsUnattended) whenOpen(plate, instrument.id, step.id, () => process(plate, index, step, instrument));
+          else process(plate, index, step, instrument);
         });
       });
     });
@@ -242,11 +313,15 @@ export const simulate = (twin: LabTwin, config: SimConfig): SimResult => {
         const rng = createRng(Math.imul(config.seed, PLATE_STREAM_STRIDE) + plateId);
         const plate: Plate = { id: plateId, workflow, at: null, releasedAt: 0, rng };
         plateId += 1;
-        events.push(index * demand.intervalS, () => {
+        // Loading a plate takes a person, so releases that fall in an unstaffed gap wait for the next shift.
+        events.push(nextAttended(plan, index * demand.intervalS), () => {
           if (wip < config.maxWip) admit(plate);
           else held.push(plate);
         });
       }
+    }
+    for (const { resourceId, startS, durationS } of plan.maintenance) {
+      if (resources.has(resourceId)) events.push(startS, () => holdForMaintenance(resourceId, durationS));
     }
     return plateId;
   };

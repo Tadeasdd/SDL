@@ -42,9 +42,10 @@ type Props = {
   isSelected: boolean;
   isTouched: boolean;
   onSelect?: (id: string) => void;
+  onGrab?: (id: string) => void;
 };
 
-export function InstrumentBody({ item, facing, segments, isSelected, isTouched, onSelect }: Props) {
+export function InstrumentBody({ item, facing, segments, isSelected, isTouched, onSelect, onGrab }: Props) {
   const group = useRef<Group>(null);
   const shell = useRef<Group>(null);
   const light = useRef<MeshBasicMaterial>(null);
@@ -76,6 +77,7 @@ export function InstrumentBody({ item, facing, segments, isSelected, isTouched, 
       rotation={[0, facing < 0 ? Math.PI : 0, 0]}
       scale={[1, 0.02, 1]}
       onClick={onSelect ? (event) => { event.stopPropagation(); onSelect(item.id); } : undefined}
+      onPointerDown={onGrab ? (event) => { event.stopPropagation(); onGrab(item.id); } : undefined}
     >
       <group ref={shell}><BodyOf item={item} /></group>
       <mesh position={[w * 0.36, h * 0.9, d / 2 + 0.03]}>

@@ -94,7 +94,7 @@ export function LiveChart({ title, legend, spec, height, testId }: Props) {
         // Nothing past the playhead has happened yet, so the crosshair stops there.
         const px = Math.min(hover, plot.x(t));
         crosshair(context, plot, px);
-        showTip(plot.timeAt(px), px);
+        showTip(hover >= plot.x(t) ? t : plot.timeAt(px), px);
       }
       const text = spec.readout(t);
       if (text !== lastText && readout.current !== null) {

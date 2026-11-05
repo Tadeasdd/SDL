@@ -8,3 +8,14 @@ export const clock = (seconds: number): string => {
 };
 
 export const signed = (value: number, digits = 2): string => `${value >= 0 ? "+" : "−"}${Math.abs(value).toFixed(digits)}`;
+
+export const euros = (value: number): string => {
+  if (value >= 1_000_000) return `€${(value / 1_000_000).toFixed(2)}M`;
+  return value >= 10_000 ? `€${Math.round(value / 1000)}k` : `€${Math.round(value).toLocaleString("en-GB")}`;
+};
+
+/** A payback period. Under a year reads better in months. */
+export const years = (value: number): string => {
+  if (value < 1 / 12) return "Under 1 month";
+  return value < 1 ? `${Math.round(value * 12)} months` : `${value.toFixed(1)} years`;
+};

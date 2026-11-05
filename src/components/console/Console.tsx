@@ -12,6 +12,8 @@ import { usePlayback } from "./playback";
 import { PlanView } from "./PlanView";
 import { ReportView } from "./ReportView";
 import { SimulateView } from "./SimulateView";
+import { DecideView } from "./DecideView";
+import { LayoutPanel } from "./LayoutPanel";
 import { useConsole, type Layers, type View } from "./store";
 import { TwinView } from "./TwinView";
 
@@ -21,6 +23,7 @@ const VIEWS: { id: View; label: string }[] = [
   { id: "map", label: "Map" },
   { id: "twin", label: "Twin" },
   { id: "simulate", label: "Simulate" },
+  { id: "decide", label: "Decide" },
   { id: "report", label: "Report" },
 ];
 
@@ -80,13 +83,16 @@ const usePlaybackClock = (): void => {
 
 const useBoot = (docs: EvidenceDoc[]): void => {
   useEffect(() => {
-    const { init, startReplay, skipReplay, setView } = useConsole.getState();
+    const { init, startReplay, skipReplay, setView, applyShare, loadSaved } = useConsole.getState();
     init(docs);
+    loadSaved();
     startReplay();
-    const target = window.location.hash.slice(1);
+    const [target = "", query = ""] = window.location.hash.slice(1).split("?");
     const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
     if (isView(target)) setView(target);
     if (reduced || (isView(target) && target !== "map")) skipReplay();
+    const shared = new URLSearchParams(query).get("s");
+    if (shared !== null) applyShare(shared);
   }, [docs]);
 };
 
@@ -163,6 +169,9 @@ function Viewport() {
   const segments = isSimulating ? run?.segments : undefined;
   const isPlan = mode === "plan" || !hasWebGL;
   const isScanning = status === "running";
+  const isEditing = useConsole((state) => state.isEditingLayout) && view === "twin";
+  const moveItem = useConsole((state) => state.moveItem);
+  const setEditing = useConsole((state) => state.setEditingLayout);
 
   return (
     <div className="viewport">
@@ -179,9 +188,12 @@ function Viewport() {
           showLabels={layers.labels}
           isScanning={isScanning}
           onSelect={select}
+          onMove={isEditing ? moveItem : undefined}
         />
       )}
       {hasWebGL ? <Hud mode={mode} onMode={setMode} /> : <p className="hud mono">WebGL unavailable. Showing plan view.</p>}
+      {view === "twin" && status === "done" && !isEditing ? <button className="btn edit-layout" onClick={() => setEditing(true)}>Edit layout</button> : null}
+      {isEditing ? <LayoutPanel /> : null}
       <p className="viewport-note mono">{isPlan ? "Plan view" : layers.cloud || isScanning ? "Point cloud is synthesised from the twin, not a captured scan" : "Instrument models are procedural, drawn to the sizes in the twin"}</p>
     </div>
   );
@@ -200,6 +212,7 @@ export function Console({ docs }: { docs: EvidenceDoc[] }) {
         {view === "map" ? <MapView /> : null}
         {view === "twin" ? <TwinView /> : null}
         {view === "simulate" ? <SimulateView /> : null}
+        {view === "decide" ? <DecideView /> : null}
         {view === "report" ? <ReportView /> : null}
       </main>
       <EvidenceViewer />

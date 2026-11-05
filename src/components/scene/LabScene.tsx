@@ -2,11 +2,11 @@
 
 import { Environment, Lightformer, OrbitControls } from "@react-three/drei";
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
-import { useEffect, useMemo, useRef } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import * as THREE from "three";
 import type { Segment } from "@/core/sim/types";
 import type { LabTwin } from "@/core/twin/schema";
-import { buildCloud, sceneOffset, toScene, wallSegments, WALL_HEIGHT } from "./geometry";
+import { buildCloud, sceneOffset, SITE, toScene, wallSegments, WALL_HEIGHT } from "./geometry";
 import { InstrumentBody } from "./InstrumentBody";
 import { closeViewOf, facingOf } from "./layout";
 import { buildLabels, LabelLayer, LabelProjector } from "./Labels";
@@ -28,6 +28,8 @@ export type SceneProps = {
   autoRotate?: boolean;
   interactive?: boolean;
   onSelect?: (id: string | null) => void;
+  /** Present only while editing: instruments can then be dragged. */
+  onMove?: (id: string, x: number, y: number) => void;
   cameraPosition?: [number, number, number];
 };
 
@@ -102,8 +104,8 @@ function Lights() {
   );
 }
 
-function Contents(props: SceneProps) {
-  const { twin, segments, selectedId, touchedId, showCloud, showRoutes, isScanning, onSelect } = props;
+function Contents(props: SceneProps & { onGrab?: (id: string) => void }) {
+  const { twin, segments, selectedId, touchedId, showCloud, showRoutes, isScanning, onSelect, onGrab } = props;
   const minDoorMm = Math.max(0, ...twin.transports.map((item) => item.minDoorMm ?? 0));
   return (
     <>
@@ -122,6 +124,7 @@ function Contents(props: SceneProps) {
           isSelected={item.id === selectedId}
           isTouched={item.id === touchedId}
           onSelect={onSelect}
+          onGrab={onGrab}
         />
       ))}
       {showRoutes ? <Routes twin={twin} selectedId={selectedId ?? null} /> : null}
@@ -175,9 +178,49 @@ function CameraRig({ twin, selectedId, overview }: { twin: LabTwin; selectedId?:
   return null;
 }
 
+const SNAP_M = 0.05;
+const snap = (value: number): number => Math.round(value / SNAP_M) * SNAP_M;
+
+/** Follows the pointer on the floor plane. Listens on the window so a fast drag cannot slip off a mesh. */
+function DragController({ twin, dragId, onMove, onEnd }: { twin: LabTwin; dragId: string | null; onMove: (id: string, x: number, y: number) => void; onEnd: () => void }) {
+  const camera = useThree((state) => state.camera);
+  const canvas = useThree((state) => state.gl.domElement);
+  useEffect(() => {
+    if (dragId === null) return;
+    const shift = sceneOffset(twin);
+    const floor = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
+    const ray = new THREE.Raycaster();
+    const hit = new THREE.Vector3();
+    const item = twin.instruments.find(({ id }) => id === dragId);
+    let grabbed: { x: number; y: number } | null = null;
+    const move = (event: PointerEvent): void => {
+      const box = canvas.getBoundingClientRect();
+      ray.setFromCamera(new THREE.Vector2(((event.clientX - box.left) / box.width) * 2 - 1, -((event.clientY - box.top) / box.height) * 2 + 1), camera);
+      if (ray.ray.intersectPlane(floor, hit) === null) return;
+      const planX = hit.x - shift[0] + SITE.x;
+      const planY = hit.z - shift[2] + SITE.y;
+      // The pointer meets the floor some way from the instrument. Keeping that offset stops it jumping on grab.
+      grabbed ??= { x: planX - (item?.x ?? planX), y: planY - (item?.y ?? planY) };
+      onMove(dragId, snap(planX - grabbed.x), snap(planY - grabbed.y));
+    };
+    window.addEventListener("pointermove", move);
+    window.addEventListener("pointerup", onEnd);
+    return () => {
+      window.removeEventListener("pointermove", move);
+      window.removeEventListener("pointerup", onEnd);
+    };
+    // The twin changes on every move, but the offset comes from its rooms, which a drag cannot change.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [dragId, camera, canvas, onMove, onEnd]);
+  return null;
+}
+
 export default function LabScene(props: SceneProps) {
-  const { twin, selectedId, showLabels = false, autoRotate = false, interactive = true, onSelect, cameraPosition = [-11.5, 13, 9.5] } = props;
+  const { twin, selectedId, showLabels = false, autoRotate = false, interactive = true, onSelect, onMove, cameraPosition = [-11.5, 13, 9.5] } = props;
   const labelRoot = useRef<HTMLDivElement>(null);
+  const [dragId, setDragId] = useState<string | null>(null);
+  const endDrag = useMemo(() => () => setDragId(null), []);
+  const grab = useMemo(() => (id: string) => { onSelect?.(id); setDragId(id); }, [onSelect]);
   const labels = useMemo(() => (showLabels ? buildLabels(twin, selectedId ?? null) : []), [showLabels, twin, selectedId]);
   return (
     <div className="scene">
@@ -186,16 +229,18 @@ export default function LabScene(props: SceneProps) {
         dpr={[1, 2]}
         shadows="percentage"
         gl={{ antialias: true, alpha: true }}
-        onPointerMissed={() => onSelect?.(null)}
+        // A drag ends away from the mesh it started on, which would otherwise read as a click on nothing.
+        onPointerMissed={() => { if (onMove === undefined) onSelect?.(null); }}
         aria-label="3D view of the lab digital twin"
       >
         <fog attach="fog" args={[SCENE.bg, 38, 80]} />
-        <group position={sceneOffset(twin)}><Contents {...props} /></group>
+        <group position={sceneOffset(twin)}><Contents {...props} onGrab={onMove ? grab : undefined} /></group>
+        {onMove ? <DragController twin={twin} dragId={dragId} onMove={onMove} onEnd={endDrag} /> : null}
         <LabelProjector root={labelRoot} />
-        {interactive ? <CameraRig twin={twin} selectedId={selectedId} overview={cameraPosition} /> : null}
+        {interactive && onMove === undefined ? <CameraRig twin={twin} selectedId={selectedId} overview={cameraPosition} /> : null}
         <OrbitControls
           makeDefault
-          enabled={interactive}
+          enabled={interactive && dragId === null}
           enablePan={interactive}
           enableZoom={interactive}
           autoRotate={autoRotate}

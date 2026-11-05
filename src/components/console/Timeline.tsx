@@ -20,7 +20,7 @@ const orderLanes = (twin: LabTwin, result: SimResult): Lane[] => {
 };
 
 const color = (segment: Segment, primaryId: string | undefined): string => {
-  if (segment.failed) return COLORS.failed;
+  if (segment.failed || segment.kind === "down") return COLORS.failed;
   if (segment.kind === "move") return COLORS.move;
   return segment.workflowId === primaryId ? COLORS.primary : COLORS.other;
 };
@@ -60,7 +60,7 @@ function Legend({ primary }: { primary: string }) {
       <li><i style={{ background: COLORS.primary }} />{primary}</li>
       <li><i style={{ background: COLORS.other }} />Other workflows</li>
       <li><i style={{ background: COLORS.move }} />Transport</li>
-      <li><i style={{ background: COLORS.failed }} />Failure</li>
+      <li><i style={{ background: COLORS.failed }} />Failure or maintenance</li>
     </ul>
   );
 }
@@ -117,7 +117,7 @@ export function Timeline({ twin, result }: { twin: LabTwin; result: SimResult })
     const y = event.clientY - box.top;
     const lane = lanes[Math.floor(y / LANE_H)];
     const hit = result.segments.find((item) => item.resourceId === lane?.id && item.kind !== "wait" && item.start <= t && t < item.end);
-    setHover(hit ? { x: event.clientX - box.left, y, text: `Plate ${hit.plateId} · ${hit.stepId} · ${minutes(hit.end - hit.start)}${hit.failed ? " · failed" : ""}` } : null);
+    setHover(hit ? { x: event.clientX - box.left, y, text: hit.kind === "down" ? `Planned maintenance · ${minutes(hit.end - hit.start)}` : `Plate ${hit.plateId} · ${hit.stepId} · ${minutes(hit.end - hit.start)}${hit.failed ? " · failed" : ""}` } : null);
   };
 
   return (

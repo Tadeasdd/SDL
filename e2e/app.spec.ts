@@ -136,6 +136,126 @@ test("plate results export as CSV", async ({ page }) => {
   expect(lines).toHaveLength(81);
 });
 
+test("the optimiser finds a plan and opens it in Simulate", async ({ page }) => {
+  await page.goto("/console#decide");
+  await expect(page.getByTestId("decide")).toBeVisible({ timeout: 20_000 });
+  await page.getByRole("button", { name: "Find the cheapest plan" }).click();
+  await expect(page.getByTestId("optimiser-result")).toContainText("Return RDR-02 to service", { timeout: 30_000 });
+  await page.getByRole("button", { name: "Open in Simulate" }).click();
+  await expect(page.getByTestId("verdict")).toContainText("Clear gain", { timeout: 20_000 });
+  await page.getByRole("button", { name: "Cost", exact: true }).click();
+  await expect(page.getByTestId("payback")).not.toHaveText("Never");
+});
+
+test("schedules can be set, run and compared", async ({ page }) => {
+  await page.goto("/console#simulate");
+  await expect(page.getByTestId("kpis")).toBeVisible({ timeout: 20_000 });
+  const before = await page.getByTestId("kpis").textContent();
+  await page.getByLabel("Staffing").selectOption("day-stop");
+  await page.getByRole("button", { name: "Run simulation" }).click();
+  await expect(page.getByTestId("kpis")).not.toHaveText(before ?? "", { timeout: 20_000 });
+  await page.getByRole("button", { name: "Decide" }).click();
+  await page.getByRole("button", { name: "Compare schedules" }).click();
+  await expect(page.getByTestId("schedule-table").locator("tbody tr")).toHaveCount(12, { timeout: 30_000 });
+});
+
+test("the assay view labels its data and follows the run", async ({ page }) => {
+  await page.goto("/console#simulate");
+  await expect(page.getByTestId("kpis")).toBeVisible({ timeout: 20_000 });
+  await page.getByRole("button", { name: "Assay" }).click();
+  await expect(page.getByTestId("assay")).toContainText("Simulated data");
+  await page.getByRole("button", { name: "Worst plate" }).click();
+  await expect(page.locator(".heatmap rect")).toHaveCount(384);
+});
+
+test("saved runs persist and compare", async ({ page }) => {
+  await page.goto("/console#simulate");
+  await expect(page.getByTestId("kpis")).toBeVisible({ timeout: 20_000 });
+  await page.getByLabel("Name this run").fill("Today");
+  await page.getByRole("button", { name: "Save run" }).click();
+  await page.getByLabel("Return RDR-02 to service").check();
+  await page.getByRole("button", { name: "Run simulation" }).click();
+  await expect(page.getByTestId("verdict")).toBeVisible({ timeout: 20_000 });
+  await page.getByLabel("Name this run").fill("Repaired");
+  await page.getByRole("button", { name: "Save run" }).click();
+  await page.goto("/console#decide");
+  await page.reload();
+  await expect(page.getByTestId("saved-compare")).toContainText("Repaired", { timeout: 20_000 });
+  await expect(page.getByTestId("saved-compare").locator("tbody tr")).toHaveCount(2);
+});
+
+test("asking about the run answers with its figures", async ({ page }) => {
+  await page.goto("/console#simulate");
+  await expect(page.getByTestId("kpis")).toBeVisible({ timeout: 20_000 });
+  await page.getByRole("button", { name: "Ask", exact: true }).click();
+  await page.getByLabel("Ask about this run").fill("why did the queue build up at hour 3?");
+  await page.getByRole("button", { name: "Ask", exact: true }).last().click();
+  await expect(page.getByTestId("ask")).toContainText(/plates? (was|were) waiting for RDR-01/);
+});
+
+test("layout edits report reach and change the result", async ({ page }) => {
+  await page.goto("/console#twin");
+  await page.getByRole("button", { name: "Edit layout" }).click({ timeout: 20_000 });
+  await page.getByRole("button", { name: /RDR-01/ }).first().click();
+  const panel = page.getByTestId("layout-panel");
+  await expect(panel).toContainText("Layout checks pass");
+  await panel.getByLabel("Y (m)").fill("7.2");
+  await expect(page.getByTestId("layout-result")).toContainText("out of ARM-01's reach");
+  await expect(page.getByTestId("layout-result")).toContainText("against the mapped layout", { timeout: 10_000 });
+  await panel.getByRole("button", { name: "Reset" }).click();
+  await expect(panel).toContainText("Layout checks pass");
+});
+
+test("dragging an instrument in 3D moves it", async ({ page }) => {
+  await page.goto("/console#twin");
+  await page.getByRole("button", { name: "Edit layout" }).click({ timeout: 20_000 });
+  await page.waitForTimeout(2500);
+  const tag = page.locator(".scene-tag", { hasText: "RDR-01" });
+  const box = await tag.boundingBox();
+  const x = (box?.x ?? 0) + (box?.width ?? 0) / 2 - 20;
+  const y = (box?.y ?? 0) + 20;
+  await page.mouse.move(x, y);
+  await page.waitForTimeout(150);
+  await page.mouse.down();
+  await page.waitForTimeout(150);
+  await page.mouse.move(x + 20, y + 3, { steps: 3 });
+  await page.mouse.move(x + 45, y + 6, { steps: 3 });
+  await page.waitForTimeout(200);
+  await page.mouse.up();
+  const field = page.getByTestId("layout-panel").getByLabel("X (m)");
+  await expect(field).toBeVisible({ timeout: 5000 });
+  await expect(field).not.toHaveValue("6.2", { timeout: 5000 });
+});
+
+test("a share link reproduces the scenario and the report prints", async ({ page, context }) => {
+  await context.grantPermissions(["clipboard-read", "clipboard-write"]);
+  await page.goto("/console#simulate");
+  await expect(page.getByTestId("kpis")).toBeVisible({ timeout: 20_000 });
+  await page.getByLabel("Return RDR-02 to service").check();
+  await page.getByRole("button", { name: "Run simulation" }).click();
+  const verdict = await page.getByTestId("verdict").textContent({ timeout: 20_000 });
+  await page.getByRole("button", { name: "Report" }).click();
+  await page.getByRole("button", { name: "Copy link" }).click();
+  await expect(page.getByRole("button", { name: "Link copied" })).toBeVisible();
+  const link = await page.evaluate(() => navigator.clipboard.readText());
+
+  const other = await context.newPage();
+  await other.goto(link);
+  await other.getByRole("button", { name: "Simulate" }).click();
+  await expect(other.getByTestId("verdict")).toHaveText(verdict ?? "", { timeout: 20_000 });
+
+  await page.getByTestId("rank-table").locator("tbody tr").first().waitFor({ timeout: 30_000 });
+  await expect(page.getByRole("button", { name: "Save as PDF" })).toBeEnabled();
+  const pdf = await page.pdf({ format: "A4", printBackground: true });
+  expect(pdf.byteLength).toBeGreaterThan(20_000);
+  expect(pdf.subarray(0, 4).toString()).toBe("%PDF");
+});
+
+test("a broken share link is ignored", async ({ page }) => {
+  await page.goto("/console#report?s=garbage");
+  await expect(page.getByTestId("report")).toBeVisible({ timeout: 20_000 });
+});
+
 test("losing the only reader reports a usable error", async ({ page }) => {
   await openMapped(page, "simulate");
   await expect(page.getByTestId("kpis")).toBeVisible({ timeout: 20_000 });

@@ -5,13 +5,19 @@ import type { EvidenceDoc } from "@/core/agent/evidence";
 import type { AgentEvent } from "@/core/agent/events";
 import { EXAMPLE_LAB, replayEvents } from "@/core/agent/replay";
 import { EXAMPLE_CONFIG, MONTE_CARLO_RUNS } from "@/core/example-config";
+import { decodeShare } from "@/core/share";
+import { assaySummary } from "@/core/sim/assay";
+import { costOf, DEFAULT_ASSUMPTIONS, paybackYears, type Assumptions } from "@/core/sim/economics";
+import { curveOf, MAX_SAVED, parseSaved, type SavedRun } from "@/core/sim/saved";
+import { scheduleLabel } from "@/core/sim/schedules";
+import { moveInstrument } from "@/core/twin/layout-edit";
 import { monteCarlo } from "@/core/sim/montecarlo";
-import { applyPatches, compare, type Comparison, type Scenario } from "@/core/sim/scenarios";
+import { applyPatches, candidateInterventions, compare, type Comparison, type Scenario } from "@/core/sim/scenarios";
 import type { MonteCarloResult, SimConfig } from "@/core/sim/types";
 import type { LabTwin } from "@/core/twin/schema";
 import { initialAgentView, reduceAgent, type AgentView } from "./agent-state";
 
-export type View = "map" | "twin" | "simulate" | "report";
+export type View = "map" | "twin" | "simulate" | "decide" | "report";
 export type Layers = { cloud: boolean; routes: boolean; labels: boolean };
 export type EvidenceFocus = { docId: string; quote?: string };
 
@@ -36,6 +42,20 @@ type ConsoleState = {
   focus: EvidenceFocus | null;
   layers: Layers;
   sim: SimState;
+  assumptions: Assumptions;
+  saved: SavedRun[];
+  /** The layout as mapped. Set on the first edit, and restored by a reset. */
+  layoutBase: LabTwin | null;
+  isEditingLayout: boolean;
+  setAssumptions: (assumptions: Assumptions) => void;
+  loadSaved: () => void;
+  saveRun: (name: string) => void;
+  deleteSaved: (id: string) => void;
+  applyScenarios: (scenarios: Scenario[]) => void;
+  applyShare: (encoded: string) => boolean;
+  setEditingLayout: (isEditing: boolean) => void;
+  moveItem: (id: string, x: number, y: number) => void;
+  resetLayout: () => void;
   setView: (view: View) => void;
   init: (docs: EvidenceDoc[]) => void;
   startReplay: () => void;
@@ -67,6 +87,17 @@ const configFor = (twin: LabTwin): SimConfig =>
     ? EXAMPLE_CONFIG
     : { ...EXAMPLE_CONFIG, demands: twin.workflows.map((workflow) => ({ workflowId: workflow.id, plates: 24, intervalS: 600 })) };
 
+const SAVED_KEY = "sdl.saved-runs.v1";
+
+/** Saved runs are a convenience. Private windows can refuse storage, and that must not break the console. */
+const persist = (saved: readonly SavedRun[]): void => {
+  try {
+    window.localStorage.setItem(SAVED_KEY, JSON.stringify(saved));
+  } catch {
+    // Nothing to do: the list still works for this session.
+  }
+};
+
 const blank = () => initialAgentView(EXAMPLE_LAB.id, EXAMPLE_LAB.name);
 
 export const useConsole = create<ConsoleState>((set, get) => ({
@@ -81,6 +112,87 @@ export const useConsole = create<ConsoleState>((set, get) => ({
   focus: null,
   layers: { cloud: false, routes: true, labels: true },
   sim: initialSim(),
+  assumptions: DEFAULT_ASSUMPTIONS,
+  saved: [],
+  layoutBase: null,
+  isEditingLayout: false,
+
+  setAssumptions: (assumptions) => set({ assumptions }),
+
+  loadSaved: () => {
+    try {
+      set({ saved: parseSaved(window.localStorage.getItem(SAVED_KEY)) });
+    } catch {
+      set({ saved: [] });
+    }
+  },
+
+  saveRun: (name) => {
+    const { sim, agent, assumptions, saved } = get();
+    const current = sim.comparison?.scenario ?? sim.baseline;
+    if (current === null || current === undefined) return;
+    const cost = costOf(agent.twin, sim.comparison ? sim.scenarios : []);
+    const gain = sim.comparison?.delta.mean ?? 0;
+    const twin = sim.comparison ? applyPatches(agent.twin, sim.scenarios.flatMap((item) => item.patches)) : agent.twin;
+    const entry: SavedRun = {
+      id: `run-${Date.now()}`,
+      name,
+      twinId: agent.twin.id,
+      savedAt: new Date().toISOString(),
+      changes: sim.comparison ? sim.scenarios.map((item) => item.name) : [],
+      scheduleLabel: scheduleLabel(sim.config.schedule),
+      throughput: current.throughputPerHour,
+      makespanS: current.makespanS.mean,
+      meanCycleS: current.meanCycleS.mean,
+      bottleneckId: current.representative.bottleneckId,
+      capex: cost.capex,
+      paybackYears: sim.comparison ? paybackYears(cost, gain, assumptions) : null,
+      assayPassShare: assaySummary(twin, current.representative, sim.config.seed)?.passShare ?? null,
+      curve: curveOf(current),
+    };
+    persist([entry, ...saved].slice(0, MAX_SAVED));
+    set({ saved: [entry, ...saved].slice(0, MAX_SAVED) });
+  },
+
+  deleteSaved: (id) => {
+    const saved = get().saved.filter((item) => item.id !== id);
+    persist(saved);
+    set({ saved });
+  },
+
+  applyScenarios: (scenarios) => {
+    set((state) => ({ sim: { ...state.sim, scenarios, comparison: null, status: "idle" }, view: "simulate" }));
+    get().runSimulation();
+  },
+
+  applyShare: (encoded) => {
+    const shared = decodeShare(encoded);
+    if (shared === null) return false;
+    const known = candidateInterventions(get().agent.twin);
+    const scenarios = shared.scenarioIds.flatMap((id) => known.filter((item) => item.id === id));
+    set((state) => ({ sim: { ...state.sim, config: shared.config, scenarios, baseline: null, comparison: null, status: "idle" } }));
+    get().runSimulation();
+    return true;
+  },
+
+  setEditingLayout: (isEditingLayout) => set({ isEditingLayout }),
+
+  moveItem: (id, x, y) =>
+    set((state) => {
+      const base = state.layoutBase ?? state.agent.twin;
+      return {
+        layoutBase: base,
+        agent: { ...state.agent, twin: moveInstrument(state.agent.twin, base, id, x, y) },
+        sim: { ...state.sim, baseline: null, comparison: null, status: "idle" },
+      };
+    }),
+
+  resetLayout: () =>
+    set((state) => (state.layoutBase === null ? state : {
+      agent: { ...state.agent, twin: state.layoutBase },
+      layoutBase: null,
+      sim: { ...state.sim, baseline: null, comparison: null, status: "idle" },
+    })),
 
   setView: (view) => set({ view }),
   init: (docs) => set({ docs, exampleDocs: docs }),
@@ -93,6 +205,8 @@ export const useConsole = create<ConsoleState>((set, get) => ({
       agent: { ...blank(), status: "running" },
       sim: initialSim(),
       selectedId: null,
+      layoutBase: null,
+      isEditingLayout: false,
     })),
 
   skipReplay: () =>
