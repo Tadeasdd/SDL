@@ -1,6 +1,9 @@
 import type { LabTwin } from "../twin/schema";
 import { simulate } from "./engine";
+import { completionBand } from "./series";
 import type { MonteCarloResult, Range, SimConfig, SimResult } from "./types";
+
+const BAND_POINTS = 72;
 
 export const range = (values: readonly number[]): Range => {
   const sorted = [...values].sort((a, b) => a - b);
@@ -35,5 +38,6 @@ export const monteCarlo = (twin: LabTwin, config: SimConfig, runs: number): Mont
     bottleneckShare: bottleneckShare(results),
     representative: closestTo(results, throughput.mean),
     samples: results.map((run) => run.throughputPerHour),
+    completionBand: completionBand(results, BAND_POINTS),
   };
 };

@@ -4,20 +4,12 @@ import { useEffect, useState } from "react";
 import { improvementPath, rankInterventions, type Intervention, type PathStep } from "@/core/sim/scenarios";
 import { monteCarlo } from "@/core/sim/montecarlo";
 import { signed } from "./format";
+import { saveFile } from "./download";
 import { useConsole } from "./store";
 
 const REPORT_RUNS = 16;
 
 type Analysis = { baseline: number; bottleneck: string | null; ranked: Intervention[]; path: PathStep[] };
-
-const download = (name: string, content: string): void => {
-  const url = URL.createObjectURL(new Blob([content], { type: "application/json" }));
-  const link = document.createElement("a");
-  link.href = url;
-  link.download = name;
-  link.click();
-  URL.revokeObjectURL(url);
-};
 
 function Path({ analysis }: { analysis: Analysis }) {
   return (
@@ -114,7 +106,7 @@ export function ReportView() {
           <p className="label">Readout</p>
           <h2 className="wide">{twin.name}</h2>
         </div>
-        <button className="btn" onClick={() => download(`${twin.id}.twin.json`, JSON.stringify(twin, null, 2))}>Export twin JSON</button>
+        <button className="btn" onClick={() => saveFile(`${twin.id}.twin.json`, JSON.stringify(twin, null, 2), "application/json")}>Export twin JSON</button>
       </header>
       {problem ? <p className="notice" role="alert">{problem}</p> : null}
       {analysis === null && problem === null ? <p className="empty">Simulating every candidate change.</p> : null}

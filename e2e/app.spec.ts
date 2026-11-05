@@ -1,3 +1,4 @@
+import { readFileSync } from "node:fs";
 import { expect, test, type Page } from "@playwright/test";
 
 const IGNORED = [/THREE\.Clock/, /GPU stall/, /GL Driver Message/];
@@ -59,12 +60,80 @@ test("restoring the reader is a clear gain and moves the bottleneck", async ({ p
   const errors = watchErrors(page);
   await openMapped(page, "simulate");
   await expect(page.getByTestId("kpis")).toBeVisible({ timeout: 20_000 });
+  await page.getByRole("button", { name: "Drivers" }).click();
   await expect(page.locator(".limit")).toContainText("RDR-01");
   await page.getByLabel("Return RDR-02 to service").check();
   await page.getByRole("button", { name: "Run simulation" }).click();
   await expect(page.getByTestId("verdict")).toContainText("Clear gain", { timeout: 20_000 });
   await expect(page.locator(".limit")).toContainText("IMG-01");
   expect(errors).toEqual([]);
+});
+
+const paintedPixels = (testId: string) => (page: import("@playwright/test").Page) =>
+  page.getByTestId(testId).locator("canvas").nth(1).evaluate((canvas: HTMLCanvasElement) => {
+    const data = canvas.getContext("2d")?.getImageData(0, 0, canvas.width, canvas.height).data ?? [];
+    let painted = 0;
+    for (let index = 3; index < data.length; index += 4) if ((data[index] as number) > 0) painted += 1;
+    return painted;
+  });
+
+test("charts draw as the run plays and survive seeking and tab switches", async ({ page }) => {
+  const errors: string[] = [];
+  page.on("pageerror", (error) => errors.push(error.message));
+  await page.goto("/console#simulate");
+  await expect(page.getByTestId("chart-completion")).toBeVisible({ timeout: 20_000 });
+  await expect(page.getByTestId("chart-completion").getByRole("img")).toHaveAttribute("aria-label", /Plates finished/);
+
+  const painted = paintedPixels("chart-completion");
+  const early = await painted(page);
+  await page.waitForTimeout(4000);
+  const later = await painted(page);
+  expect(later).toBeGreaterThan(early);
+
+  const plot = page.getByTestId("chart-completion").locator(".chart-plot");
+  const box = await plot.boundingBox();
+  await page.getByRole("button", { name: "Pause" }).click();
+  await page.mouse.click((box?.x ?? 0) + (box?.width ?? 0) * 0.8, (box?.y ?? 0) + 40);
+  await page.waitForTimeout(400);
+  const ahead = await painted(page);
+  expect(ahead).toBeGreaterThan(later);
+  await page.mouse.click((box?.x ?? 0) + (box?.width ?? 0) * 0.3, (box?.y ?? 0) + 40);
+  await page.waitForTimeout(400);
+  expect(await painted(page)).toBeLessThan(ahead);
+
+  await page.getByRole("button", { name: "Tables" }).click();
+  await expect(page.getByTestId("plate-table").locator("tbody tr")).toHaveCount(80);
+  await page.getByRole("button", { name: "Charts" }).click();
+  await expect(page.getByTestId("chart-cycle")).toBeVisible();
+  expect(errors).toEqual([]);
+});
+
+test("the crosshair stops at the playhead", async ({ page }) => {
+  await page.goto("/console#simulate");
+  await expect(page.getByTestId("chart-completion")).toBeVisible({ timeout: 20_000 });
+  await page.getByRole("button", { name: "Pause" }).click();
+  const plot = page.getByTestId("chart-completion").locator(".chart-plot");
+  const box = await plot.boundingBox();
+  await page.mouse.move((box?.x ?? 0) + (box?.width ?? 0) - 20, (box?.y ?? 0) + 30);
+  const tip = page.getByTestId("chart-completion").locator(".chart-tip");
+  await expect(tip).toBeVisible();
+  const shown = await tip.locator("span").first().textContent();
+  const clock = await page.locator(".readout").textContent();
+  expect(shown).toBe(clock);
+});
+
+test("plate results export as CSV", async ({ page }) => {
+  await page.goto("/console#simulate");
+  await expect(page.getByTestId("kpis")).toBeVisible({ timeout: 20_000 });
+  await page.getByRole("button", { name: "Tables" }).click();
+  const pending = page.waitForEvent("download");
+  await page.getByRole("button", { name: "Export CSV" }).click();
+  const download = await pending;
+  expect(download.suggestedFilename()).toMatch(/plates\.csv$/);
+  const path = await download.path();
+  const lines = readFileSync(path, "utf8").trim().split("\n");
+  expect(lines[0]).toBe("plate,workflow,started_min,finished_min,cycle_min,queued_min,failures");
+  expect(lines).toHaveLength(81);
 });
 
 test("losing the only reader reports a usable error", async ({ page }) => {

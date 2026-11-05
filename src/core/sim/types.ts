@@ -57,4 +57,6 @@ export type MonteCarloResult = {
   /** The run closest to the mean throughput. Used for playback. */
   representative: SimResult;
   samples: number[];
+  /** Plates finished over time, 5th to 95th percentile across runs. */
+  completionBand: { t: number[]; p5: number[]; p95: number[] };
 };

@@ -1,10 +1,12 @@
 "use client";
 
-import { useEffect, useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { MONTE_CARLO_RUNS } from "@/core/example-config";
 import { candidateInterventions, type Comparison, type Scenario } from "@/core/sim/scenarios";
 import type { MonteCarloResult, Range } from "@/core/sim/types";
 import type { LabTwin } from "@/core/twin/schema";
+import { ResultCharts } from "./charts/ResultCharts";
+import { ResultTables } from "./charts/ResultTables";
 import { hours, minutes, signed } from "./format";
 import { usePlayback } from "./playback";
 import { useConsole } from "./store";
@@ -129,8 +131,33 @@ function Utilisation({ result }: { result: MonteCarloResult }) {
   );
 }
 
-function Results() {
+const TABS = [
+  { id: "charts", label: "Charts" },
+  { id: "tables", label: "Tables" },
+  { id: "drivers", label: "Drivers" },
+] as const;
+
+type Tab = (typeof TABS)[number]["id"];
+
+function Drivers({ current }: { current: MonteCarloResult }) {
+  return (
+    <>
+      <div className="limit">
+        <span className="label">Longest plate queue</span>
+        <ul>
+          {Object.entries(current.bottleneckShare).sort((a, b) => b[1] - a[1]).slice(0, 3).map(([id, share]) => (
+            <li key={id} className="mono"><strong>{id}</strong> in {Math.round(share * 100)}% of runs</li>
+          ))}
+        </ul>
+      </div>
+      <Utilisation result={current} />
+    </>
+  );
+}
+
+function Results({ twin }: { twin: LabTwin }) {
   const sim = useConsole((state) => state.sim);
+  const [tab, setTab] = useState<Tab>("charts");
   const current = sim.comparison?.scenario ?? sim.baseline;
   const baseline = sim.comparison?.baseline;
   const hasUnrun = sim.scenarios.length > 0 && sim.comparison === null;
@@ -148,15 +175,14 @@ function Results() {
               <Kpi label="Mean cycle" range={current.meanCycleS} format={minutes} compareTo={baseline?.meanCycleS} />
             </dl>
             {sim.comparison ? <Verdict comparison={sim.comparison} /> : null}
-            <div className="limit">
-              <span className="label">Longest plate queue</span>
-              <ul>
-                {Object.entries(current.bottleneckShare).sort((a, b) => b[1] - a[1]).slice(0, 3).map(([id, share]) => (
-                  <li key={id} className="mono"><strong>{id}</strong> in {Math.round(share * 100)}% of runs</li>
-                ))}
-              </ul>
+            <div className="seg seg-tabs" role="group" aria-label="Result views">
+              {TABS.map(({ id, label }) => (
+                <button key={id} className={tab === id ? "is-on" : ""} aria-pressed={tab === id} onClick={() => setTab(id)}>{label}</button>
+              ))}
             </div>
-            <Utilisation result={current} />
+            {tab === "charts" ? <ResultCharts twin={twin} current={current} baseline={baseline} /> : null}
+            {tab === "tables" ? <ResultTables twin={twin} result={current} /> : null}
+            {tab === "drivers" ? <Drivers current={current} /> : null}
           </>
         )}
       </div>
@@ -195,7 +221,7 @@ export function SimulateView() {
   return (
     <>
       <Setup twin={twin} />
-      <Results />
+      <Results twin={twin} />
       {run ? <Timeline twin={twin} result={run} /> : null}
     </>
   );

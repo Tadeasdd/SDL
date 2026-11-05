@@ -61,12 +61,15 @@ const useReplayDriver = (): void => {
   }, [isReplaying]);
 };
 
+/** A backgrounded tab stops frames. Without a cap, coming back would jump the run forward. */
+const MAX_TICK_S = 0.1;
+
 const usePlaybackClock = (): void => {
   useEffect(() => {
     let frame = 0;
     let last = performance.now();
     const loop = (now: number) => {
-      usePlayback.getState().tick((now - last) / 1000);
+      usePlayback.getState().tick(Math.min((now - last) / 1000, MAX_TICK_S));
       last = now;
       frame = requestAnimationFrame(loop);
     };
